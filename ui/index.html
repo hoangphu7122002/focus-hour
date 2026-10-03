@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Focus map</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --surface: #ffffff; --lane: #efeee9; --line: #dcdbd5; --edge: #a9a8a1;
+    --text: #1d1d1b; --dim: #6b6a65; --accent: #c96442; --focus: #2f7fc1;
+    --ok: #3f9b5b; --info: #2f7fc1; --warn: #b7841a; --bad: #c2453b; --idle: #9a9993;
+    --up: #2f7fc1; --down: #c2453b; --shadow: 0 1px 2px rgba(0,0,0,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #151514; --surface: #1f1f1d; --lane: #1a1a19; --line: #33332f; --edge: #5d5c57;
+      --text: #ecebe6; --dim: #9d9c96; --accent: #d97757; --focus: #6aa8e0;
+      --ok: #6cc07f; --info: #6aa8e0; --warn: #e2b04a; --bad: #e8736a; --idle: #6e6d68;
+      --up: #6aa8e0; --down: #e8736a; --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #151514; --surface: #1f1f1d; --lane: #1a1a19; --line: #33332f; --edge: #5d5c57;
+    --text: #ecebe6; --dim: #9d9c96; --accent: #d97757; --focus: #6aa8e0;
+    --ok: #6cc07f; --info: #6aa8e0; --warn: #e2b04a; --bad: #e8736a; --idle: #6e6d68;
+    --up: #6aa8e0; --down: #e8736a; --shadow: none;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1200px; margin: 0 auto; padding: 18px 16px 40px; display: flex; flex-direction: column; gap: 12px; }
+  body.embed main { padding: 10px 10px 28px; }
+  h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
+  body.embed h1 { display: none; }
+  button, input { font: inherit; color: inherit; }
+  button { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  button:hover { border-color: var(--edge); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.link { border: 0; background: none; padding: 0; color: var(--focus); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  input[type=text] { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; min-width: 0; flex: 1 1 200px; }
+
+  .bar { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--idle); border-radius: 8px; padding: 9px 12px; display: grid; gap: 4px; box-shadow: var(--shadow); }
+  .bar[data-level="1"] { border-left-color: var(--info); } .bar[data-level="2"] { border-left-color: var(--warn); } .bar[data-level="3"] { border-left-color: var(--bad); }
+  .bar .row1 { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .bar .head { font-weight: 600; }
+  .bar .meta { color: var(--dim); overflow-wrap: anywhere; }
+  .bar .flow { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .bar .reason[data-level="1"] { color: var(--info); } .bar .reason[data-level="2"] { color: var(--warn); } .bar .reason[data-level="3"] { color: var(--bad); }
+
+  .legend-box summary { color: var(--dim); font-size: 12px; cursor: pointer; width: fit-content; }
+  .legend-box:not([open]) { margin-bottom: -4px; }
+  .legend { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--dim); font-size: 12px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .ln { width: 18px; border-top: 1.5px solid var(--edge); display: inline-block; }
+  .ln.up { border-top-color: var(--up); border-top-width: 2px; } .ln.down { border-top-color: var(--down); border-top-width: 2px; }
+  .ln.dash { border-top-style: dashed; } .ln.dot { border-top-style: dotted; border-top-width: 2px; }
+
+  .canvas.drag { cursor: grabbing; user-select: none; }
+  .canvas { cursor: grab; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: auto; max-height: 62vh; box-shadow: var(--shadow); }
+  body.embed .canvas { max-height: 55vh; }
+  svg { display: block; }
+  .lane-bg { fill: var(--lane); }
+  .lane-label { fill: var(--dim); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .edge { fill: none; stroke: var(--edge); stroke-width: 1.4; }
+  .edge.replaced { stroke-dasharray: 5 4; } .edge.task { stroke-dasharray: 1.5 3.5; stroke-width: 1.8; stroke-linecap: round; }
+  .edge.up { stroke: var(--up); stroke-width: 2.2; } .edge.down { stroke: var(--down); stroke-width: 2.2; }
+  .dimmed { opacity: .22; }
+  .node { cursor: pointer; }
+  .node rect.box { fill: var(--surface); stroke: var(--line); stroke-width: 1; }
+  .node:hover rect.box { stroke: var(--edge); }
+  .node.sel rect.box { stroke: var(--accent); stroke-width: 2; }
+  .node.up rect.box { stroke: var(--up); stroke-width: 1.6; } .node.down rect.box { stroke: var(--down); stroke-width: 1.6; }
+  .node .id { font-weight: 700; font-size: 12px; fill: var(--text); }
+  .node .title { font-size: 12px; fill: var(--text); }
+  .node .sub { font-size: 11px; fill: var(--dim); }
+  .node.superseded .title, .node.dead .title, .node.paused .title { fill: var(--dim); text-decoration: line-through; }
+  .node.dead rect.box, .node.paused rect.box { stroke: var(--bad); stroke-dasharray: 4 3; fill: var(--bg); }
+  .edge.deadedge { stroke: var(--bad); stroke-dasharray: 4 3; opacity: .55; }
+  .node.superseded .id { fill: var(--dim); }
+  .pulse { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+  .empty { padding: 28px 16px; color: var(--dim); text-align: center; }
+
+  .detail { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; box-shadow: var(--shadow); }
+  .detail.placeholder { color: var(--dim); }
+  .detail h2 { font-size: 14px; margin: 0 0 2px; overflow-wrap: anywhere; }
+  .detail .tag { color: var(--dim); margin-bottom: 8px; }
+  .kv { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 5px 12px; margin: 8px 0; }
+  .kv > div:nth-child(odd) { color: var(--dim); }
+  .kv > div { overflow-wrap: anywhere; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; background: var(--bg); cursor: pointer; overflow-wrap: anywhere; }
+  .chip.up { border-color: var(--up); } .chip.down { border-color: var(--down); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+  .note { color: var(--warn); } .err { color: var(--bad); } .good { color: var(--ok); }
+  .section { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); margin: 12px 0 6px; }
+  a { color: var(--focus); }
+  code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  #toast { position: fixed; right: 12px; bottom: 12px; max-width: min(420px, calc(100vw - 24px)); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; display: none; box-shadow: 0 4px 16px rgba(0,0,0,.18); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Focus map</h1>
+  <section class="bar" id="bar" aria-live="polite"></section>
+  <details class="legend-box" id="legendBox" open><summary>Legend</summary><div class="legend">
+    <span><i class="sw" style="background:var(--ok)"></i>active</span>
+    <span><i class="sw" style="background:var(--info)"></i>draft</span>
+    <span><i class="sw" style="background:var(--bad)"></i>dead (a decision it built on changed)</span>
+    <span><i class="sw" style="background:var(--idle)"></i>replaced</span>
+    <span><i class="ln"></i>builds on</span>
+    <span><i class="ln dash"></i>replaced by</span>
+    <span><i class="ln dot"></i>task</span>
+    <span><i class="ln up"></i>builds on (selected)</span>
+    <span><i class="ln down"></i>affected by (selected)</span>
+  </div></details>
+  <div class="canvas" id="canvas"></div>
+  <section class="detail placeholder" id="detail">Select a decision or task to see why, what it builds on, and what it affects.</section>
+</main>
+<datalist id="areas"></datalist>
+<div id="toast" role="status"></div>
+<script type="module">
+import { SIZE, fit, layout, related, wrap } from './graph.js'
+
+const $ = s => document.querySelector(s)
+const params = new URLSearchParams(location.search)
+if (params.has('embed')) { document.body.classList.add('embed'); document.getElementById('legendBox').open = false }
+if (params.get('theme')) document.documentElement.dataset.theme = params.get('theme')
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+const fmt = ms => { const s = Math.max(0, Math.round((ms || 0) / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
+
+let S = null
+let raw = ''
+let selected = params.get('select')
+let reveal = false
+let graph = null
+
+const DCOLOR = { active: 'var(--ok)', draft: 'var(--info)', dead: 'var(--bad)', superseded: 'var(--idle)' }
+const DLABEL = { active: 'active', draft: 'draft', dead: 'dead · revive or re-decide', superseded: 'replaced' }
+const TCOLOR = { paused: 'var(--idle)', queued: 'var(--idle)', running: 'var(--ok)', stopped: 'var(--bad)', ready: 'var(--info)', review: 'var(--info)' }
+const TLABEL = { paused: 'paused · its decision is dead', queued: 'queued', running: 'running', stopped: 'stopped', ready: 'finishing', review: 'waiting for review' }
+
+async function act(args) {
+  const r = await fetch('/api/act', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args }) }).then(r => r.json())
+  toast(r.text || r.error || '', r.ok === false || r.error)
+  raw = ''
+  await refresh()
+}
+
+function toast(text, bad) {
+  const t = $('#toast')
+  t.textContent = String(text).split('\n')[0].slice(0, 200)
+  t.className = bad ? 'err' : ''
+  t.style.display = text ? 'block' : 'none'
+  clearTimeout(toast.timer)
+  toast.timer = setTimeout(() => (t.style.display = 'none'), 4000)
+}
+
+function headline(s) {
+  const c = s.session
+  if (!c.active) return 'Not started'
+  if (c.overtime) return "Time's up"
+  if (c.pulledEarly) return 'Early checkpoint'
+  if (c.current) return `Checkpoint #${c.current}`
+  return `${fmt(c.left)} left · checkpoint #${c.upcoming} in ${fmt(c.inMs)}`
+}
+
+const liveTasks = s => s.tasks.filter(t => !['approved', 'dropped'].includes(t.status))
+const tasksHidden = s => s.session.collapsed && !reveal
+
+function renderBar() {
+  const s = S
+  const lvl = s.attention.level
+  const hidden = tasksHidden(s) ? liveTasks(s).length : 0
+  $('#bar').dataset.level = lvl
+  $('#bar').innerHTML = `
+    <div class="row1">
+      <span class="head">${esc(headline(s))}${s.session.mode === 'observe' ? ' · observe' : ''}</span>
+      ${s.session.active ? '<button data-act="stop">Stop hour</button>' : '<button class="primary" data-act="start">Start hour</button>'}
+    </div>
+    <div class="meta flow" title="${esc(s.flow.text)}">Flow: ${esc(s.flow.text)}${s.flow.derived ? ' <i>(derived)</i>' : ''}</div>
+    ${lvl ? `<div class="reason" data-level="${lvl}">${esc(s.attention.reason)}</div>` : ''}
+    ${hidden ? `<div class="meta">${hidden} task(s) hidden until checkpoint #${s.session.upcoming} in ${fmt(s.session.inMs)} · <button class="link" data-act="reveal">show anyway (counts as a pull)</button></div>` : ''}
+    ${!s.workerAlive && liveTasks(s).some(t => t.status === 'queued') ? '<div class="note">No worker running — start <code>focus ui</code> or <code>focus worker</code>.</div>' : ''}`
+}
+
+function renderGraph() {
+  const s = S
+  const ds = s.decisions.filter(d => d.status !== 'rejected')
+  const ts = tasksHidden(s) ? [] : liveTasks(s)
+  graph = layout(ds, ts)
+  if (!graph.nodes.length) {
+    $('#canvas').innerHTML = '<div class="empty">No decisions yet. They are recorded from your answers to the AI\'s questions.</div>'
+    return
+  }
+  const rel = selected && graph.nodes.some(n => n.id === selected) ? related(graph.edges, selected) : null
+  const cls = id => (!rel ? '' : id === selected ? 'sel' : rel.up.has(id) ? 'up' : rel.down.has(id) ? 'down' : 'dimmed')
+  const ecls = e => {
+    if (!rel) return ''
+    const inUp = (rel.up.has(e.from) || e.from === selected) && (rel.up.has(e.to) || e.to === selected)
+    const inDown = (rel.down.has(e.to) || e.to === selected) && (rel.down.has(e.from) || e.from === selected)
+    return inUp ? 'up' : inDown ? 'down' : 'dimmed'
+  }
+  const textW = SIZE.w - 36
+  const node = n => {
+    const isTask = n.kind === 'task'
+    const d = n.data
+    const color = isTask ? TCOLOR[d.status] ?? 'var(--idle)' : DCOLOR[d.status] ?? 'var(--idle)'
+    const sub = isTask
+      ? `${TLABEL[d.status] ?? d.status}${d.prNumber ? ` · PR #${d.prNumber}` : ''}${d.stale?.length ? ' · stale' : ''}`
+      : `${DLABEL[d.status] ?? d.status}${d.dependents?.length ? ` · affects ${d.dependents.length}` : ''}`
+    const lines = isTask ? [fit(d.title, textW, 6.8)] : wrap(d.title, textW, 2, 6.8)
+    const x = n.x + 26
+    return `<g class="node ${isTask ? 'task' : ''} ${esc(d.status)} ${cls(n.id)}" data-id="${esc(n.id)}" tabindex="0" role="button" aria-label="${esc(`${n.id} ${d.title}, ${sub}`)}">
+      <title>${esc(`${n.id} · ${d.title}\n${sub}`)}</title>
+      <rect class="box" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="${isTask ? n.h / 2 : 8}"/>
+      <circle class="${d.status === 'running' ? 'pulse' : ''}" cx="${n.x + 14}" cy="${n.y + 18}" r="4" fill="${color}"/>
+      <text x="${x}" y="${n.y + 22}"><tspan class="id">${esc(d.id)}</tspan><tspan class="sub" dx="8">${esc(fit(sub, textW - 44, 6.2))}</tspan></text>
+      ${lines.map((l, i) => `<text class="title" x="${x}" y="${n.y + 40 + i * 16}">${esc(l)}</text>`).join('')}
+    </g>`
+  }
+  const marker = k => `<marker id="arrow${k}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" fill="${k === 'up' ? 'var(--up)' : k === 'down' || k === 'dead' ? 'var(--down)' : 'var(--edge)'}"/></marker>`
+  const deadIds = new Set(graph.nodes.filter(n => n.data.status === 'dead' || n.data.status === 'paused').map(n => n.id))
+  const W = Math.max(graph.width, $('#canvas').clientWidth - 2)
+  $('#canvas').innerHTML = `<svg width="${W}" height="${graph.height}" viewBox="0 0 ${W} ${graph.height}" role="img" aria-label="Decisions and tasks by feature">
+    <defs>${['', 'up', 'down', 'dead'].map(marker).join('')}</defs>
+    ${graph.lanes.map(l => `<g><rect class="lane-bg" x="6" y="${l.y}" width="${W - 12}" height="${l.h}" rx="8"/>
+      <text class="lane-label" x="${SIZE.pad}" y="${l.y + 19}">${esc(l.name)} · ${graph.nodes.filter(n => n.area === l.name).length}</text></g>`).join('')}
+    ${graph.edges.map(e => { const c = ecls(e); const dead = deadIds.has(e.to) ? 'deadedge' : ''; return `<path class="edge ${e.kind} ${c} ${dead}" d="${e.path}" marker-end="url(#arrow${c === 'up' || c === 'down' ? c : dead ? 'dead' : ''})"/>` }).join('')}
+    ${graph.nodes.map(node).join('')}
+  </svg>`
+}
+
+function chips(ids, kind) {
+  if (!ids.length) return '<div class="tag">—</div>'
+  return `<div class="chips">${ids.map(id => {
+    const n = graph.nodes.find(x => x.id === id)
+    return `<span class="chip ${kind}" data-select="${esc(id)}" role="button" tabindex="0" title="${esc(n?.data.title ?? '')}">${esc(id)}${n ? ` ${esc(fit(n.data.title, 160))}` : ''}</span>`
+  }).join('')}</div>`
+}
+
+function renderDetail() {
+  const box = $('#detail')
+  const n = selected && graph?.nodes.find(x => x.id === selected)
+  if (!n) {
+    box.className = 'detail placeholder'
+    box.textContent = 'Select a decision or task to see why, what it builds on, and what it affects.'
+    return
+  }
+  box.className = 'detail'
+  const rel = related(graph.edges, n.id)
+  const up = [...rel.up].sort()
+  const down = [...rel.down].sort()
+  $('#areas').innerHTML = [...new Set(S.decisions.map(d => d.area).filter(Boolean))].map(a => `<option value="${esc(a)}">`).join('')
+  if (n.kind === 'decision') {
+    const d = n.data
+    box.innerHTML = `
+      <h2>${esc(d.id)} · ${esc(d.title)}</h2>
+      <div class="tag">${esc(DLABEL[d.status] ?? d.status)} · ${esc(d.area || 'Unsorted')}</div>
+      ${d.status === 'dead' ? `<div class="err">Dead: ${esc(d.review_reason)}. Keep it if it still holds (it moves onto the new decision), or re-decide it.</div>` : ''}
+      <div class="kv">
+        <div>Question</div><div>${esc(d.question || '—')}</div>
+        <div>Chose</div><div><b>${esc(d.chosen || '—')}</b></div>
+        <div>Rejected</div><div>${esc((d.rejected || []).join(', ') || '—')}</div>
+        <div>Why</div><div>${esc(d.why || '(not filled yet)')}</div>
+        ${d.supersedes ? `<div>Replaces</div><div>${esc(d.supersedes)}</div>` : ''}
+        ${d.superseded_by ? `<div>Replaced by</div><div>${esc(d.superseded_by)}</div>` : ''}
+        ${d.evidence ? `<div>Evidence</div><div>${esc(d.evidence)}</div>` : ''}
+        ${d.adr ? `<div>ADR</div><div>${esc(d.adr)}</div>` : ''}
+      </div>
+      <div class="section">Builds on</div>${chips(up, 'up')}
+      <div class="section">If this changes, it affects</div>${chips(down, 'down')}
+      <div class="actions">
+        ${d.status === 'draft' ? '<button class="primary" data-act="confirm">Confirm</button><button data-act="reject">Reject</button>' : ''}
+        ${d.status === 'dead' ? '<button class="primary" data-act="revive">Still holds</button><button data-act="redecide">Re-decide</button>' : ''}
+        ${d.status === 'active' && !d.adr ? '<button data-act="promote">Promote to ADR</button>' : ''}
+      </div>
+      <div class="actions"><input type="text" id="area" list="areas" placeholder="Feature area" value="${esc(d.area || '')}" aria-label="Feature area"><button data-act="area">Move to area</button></div>`
+  } else {
+    const t = n.data
+    const c = t.checks
+    const ok = b => (b ? '<span class="good">✓</span>' : '<span class="note">!</span>')
+    const needsPredict = t.status === 'review' && S.config.predict !== 'off' && !t.prediction && !t.predictionSkipped
+    box.innerHTML = `
+      <h2>${esc(t.id)} · ${esc(t.title)}</h2>
+      <div class="tag">${esc(TLABEL[t.status] ?? t.status)} · ${esc(t.level)}${t.escalations ? ' (escalated)' : ''} · $${(t.costUsd || 0).toFixed(2)}${t.status === 'queued' && t.waits ? ` · waits: ${esc(t.waits)}` : ''}</div>
+      ${t.stale.length ? `<div class="note">Stale: ${esc(t.staleReason)}</div>` : ''}
+      ${t.status === 'stopped' ? `<div class="err">Stopped (${esc(t.andon?.trigger)}): ${esc(t.andon?.reason)}</div>` : ''}
+      <div class="kv"><div>Scope</div><div><code>${esc(t.scope.join(', ') || '(repo)')}</code>${t.resources.length ? ` · needs ${esc(t.resources.join(', '))}` : ''}</div></div>
+      ${c ? `<div class="section">Machine checks</div>
+        <div>${ok(!c.outOfScope.length)} scope${c.outOfScope.length ? ` — outside: ${esc(c.outOfScope.join(', '))}` : ''}</div>
+        <div>${ok(c.testsDelta >= 0)} test cases ${c.testsDelta >= 0 ? '+' : ''}${c.testsDelta} · ${ok(!c.mocksAdded)} mocks +${c.mocksAdded}</div>
+        <div>${ok(c.testsPass)} <code>${esc(S.config.testCommand)}</code> ${c.testsPass ? 'passed' : 'failed'} · +${c.added} / −${c.removed} in ${c.files.length} file(s)</div>` : ''}
+      ${t.packet ? `<div class="section">Agent claims (not verified)</div><div>${esc(t.packet.summary || '')}</div>${(t.packet.risks || []).map(x => `<div class="note">Risk: ${esc(x)}</div>`).join('')}` : ''}
+      <div class="section">Based on</div>${chips(up, 'up')}
+      ${t.status === 'stopped' ? `<div class="actions"><input type="text" id="msg" placeholder="Resume with an instruction"><button class="primary" data-act="resume">Resume</button></div>
+        <div class="actions"><button data-act="label-true">Stop was right</button><button data-act="label-false">False alarm</button><button data-act="drop">Drop</button></div>` : ''}
+      ${needsPredict ? `<div class="section">Predict before you look</div>
+        <div class="actions"><input type="text" id="msg" placeholder="The diff will…"><button class="primary" data-act="predict">Save prediction</button>${S.config.predict === 'optional' ? '<button data-act="skip">Skip (counted)</button>' : ''}</div>` : ''}
+      ${t.status === 'review' && !needsPredict ? `
+        ${t.prediction ? `<div class="kv"><div>You predicted</div><div><i>${esc(t.prediction)}</i></div></div>` : ''}
+        <div class="actions">${t.prUrl ? `<a href="${esc(t.prUrl)}" target="_blank" rel="noopener">Open PR #${t.prNumber} ↗</a>` : `<span>Local branch <code>focus/${esc(t.id)}</code>${t.publishError ? ` (${esc(t.publishError)})` : ''}</span>`}</div>
+        <div class="actions">
+          ${t.prediction && t.predictionMatch === null ? '<button data-act="match-yes">Prediction matched</button><button data-act="match-no">Prediction missed</button>' : ''}
+          <button class="primary" data-act="approve">${t.prNumber ? 'Approve & merge' : 'Approve'}</button><button data-act="drop">Drop</button>
+        </div>
+        <div class="actions"><input type="text" id="rework" placeholder="Rework: what to change"><button data-act="rework">Send rework</button></div>` : ''}`
+  }
+}
+
+function render() {
+  renderBar()
+  renderGraph()
+  renderDetail()
+}
+
+function centerOn(id, behavior = 'smooth') {
+  const n = graph?.nodes.find(x => x.id === id)
+  const c = $('#canvas')
+  if (!n || (n.x >= c.scrollLeft && n.x + n.w <= c.scrollLeft + c.clientWidth && n.y >= c.scrollTop && n.y + n.h <= c.scrollTop + c.clientHeight)) return
+  c.scrollTo({ left: n.x + n.w / 2 - c.clientWidth / 2, top: n.y + n.h / 2 - c.clientHeight / 2, behavior })
+}
+
+// Drag the canvas to pan (the map is wider than a sidebar); a click without movement still selects.
+let drag = null
+let dragged = false
+$('#canvas').addEventListener('pointerdown', e => {
+  if (e.button !== 0) return
+  drag = { x: e.clientX, y: e.clientY, left: $('#canvas').scrollLeft, top: $('#canvas').scrollTop }
+  dragged = false
+})
+window.addEventListener('pointermove', e => {
+  if (!drag) return
+  const dx = e.clientX - drag.x
+  const dy = e.clientY - drag.y
+  if (!dragged && Math.hypot(dx, dy) < 4) return
+  dragged = true
+  $('#canvas').classList.add('drag')
+  $('#canvas').scrollLeft = drag.left - dx
+  $('#canvas').scrollTop = drag.top - dy
+})
+window.addEventListener('pointerup', () => { drag = null; $('#canvas').classList.remove('drag') })
+
+function select(id, toggle = true) {
+  selected = toggle && selected === id ? null : id
+  renderGraph()
+  renderDetail()
+  if (selected) centerOn(selected)
+  if (selected && !params.has('select')) $('#detail').scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+}
+
+document.addEventListener('click', e => {
+  const n = e.target.closest('.node')
+  if (n) { if (!dragged) select(n.dataset.id); return }
+  const chip = e.target.closest('[data-select]')
+  if (chip) return select(chip.dataset.select, false)
+  const a = e.target.closest('a[href^="http"]')
+  if (a && window.parent !== window) {
+    e.preventDefault()
+    window.parent.postMessage({ type: 'focus-open', url: a.href }, '*')
+    return
+  }
+  const b = e.target.closest('button[data-act]')
+  if (!b) return
+  const v = sel => ($(sel)?.value ?? '').trim()
+  const id = selected
+  ;({
+    start: () => act(['start']), stop: () => act(['stop']),
+    reveal: async () => { await act(['pull', 'dashboard']); reveal = true; render() },
+    confirm: () => act(['decision', 'confirm', id]), reject: () => act(['decision', 'reject', id]),
+    revive: () => act(['decision', 'revive', id]), redecide: () => act(['decision', 'redecide', id]), promote: () => act(['decision', 'promote', id]),
+    area: () => v('#area') && act(['decision', 'edit', id, '--area', v('#area')]),
+    predict: () => v('#msg') && act(['predict', id, v('#msg')]), skip: () => act(['skip', id]),
+    'match-yes': () => act(['match', id, 'yes']), 'match-no': () => act(['match', id, 'no']),
+    approve: () => act(['approve', id]), drop: () => act(['drop', id]),
+    rework: () => v('#rework') && act(['rework', id, v('#rework')]),
+    resume: () => act(['resume', id, v('#msg')]),
+    'label-true': () => act(['label', id, 'true']), 'label-false': () => act(['label', id, 'false']),
+  })[b.dataset.act]?.()
+})
+document.addEventListener('keydown', e => {
+  const target = e.target.closest?.('.node, [data-select]')
+  if (target && (e.key === 'Enter' || e.key === ' ')) {
+    e.preventDefault()
+    target.dataset.id ? select(target.dataset.id) : select(target.dataset.select, false)
+  }
+  if (e.key === 'Escape' && selected) select(selected)
+})
+
+async function refresh() {
+  try {
+    const text = await fetch('/api/status').then(r => r.text())
+    const next = JSON.parse(text)
+    if (next.error) throw new Error(next.error)
+    if (text === raw) return
+    const wasCollapsed = S?.session.collapsed
+    raw = text
+    S = next
+    if (!S.session.collapsed) reveal = false
+    if (wasCollapsed && !S.session.collapsed) toast(S.session.pulledEarly ? `Early checkpoint: ${S.attention.reason}` : 'Checkpoint: time to review')
+    if (document.activeElement?.tagName === 'INPUT') { renderBar(); return }
+    const first = !graph
+    render()
+    if (first && selected) centerOn(selected, 'instant')
+  } catch (e) {
+    $('#bar').innerHTML = `<div class="err">Lost the dashboard server (${esc(e.message)}). Is <code>focus ui</code> still running?</div>`
+  }
+}
+refresh()
+setInterval(refresh, 2000)
+</script>
+</body>
+</html>

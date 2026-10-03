@@ -1,0 +1,84 @@
+{
+  "name": "focus-hour-vscode",
+  "displayName": "Focus Hour",
+  "description": "Focus map for Focus Hour: decisions, background tasks and PRs in a docked panel",
+  "version": "0.1.1",
+  "publisher": "hoangphu7122002",
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "workspaceContains:.focus/config.json",
+    "onView:focusHour.map",
+    "onCommand:focusHour.open"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "focusHour",
+          "title": "Focus Hour",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "focusHour": [
+        {
+          "type": "webview",
+          "id": "focusHour.map",
+          "name": "Focus map"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "focusHour.open",
+        "title": "Focus Hour: Open Focus Map in Editor"
+      },
+      {
+        "command": "focusHour.restart",
+        "title": "Focus Hour: Restart Dashboard and Workers"
+      }
+    ],
+    "configuration": {
+      "title": "Focus Hour",
+      "properties": {
+        "focusHour.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the focus CLI (bin/focus.mjs). Empty: the newest installed focus-hour plugin, found under ~/.claude/plugins/cache."
+        },
+        "focusHour.port": {
+          "type": "number",
+          "default": 7777,
+          "description": "First port to try for the dashboard (one port per repo)."
+        },
+        "focusHour.autoStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "Start the dashboard and the workers when a repo with .focus/config.json opens. They stop when the window closes."
+        },
+        "focusHour.revealOnCheckpoint": {
+          "type": "boolean",
+          "default": true,
+          "description": "Reveal the Focus map at checkpoints and early checkpoints."
+        },
+        "focusHour.nodePath": {
+          "type": "string",
+          "default": "",
+          "description": "Node executable for the focus CLI (empty: node on PATH, else the editor's own runtime)."
+        }
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hoangphu7122002/focus-hour"
+  }
+}
