@@ -2,7 +2,7 @@
 
 A Claude Code plugin for one focused hour with agents: you build the core with the main session and decide;
 background workers do related side tasks in their own git worktrees and open PRs at your review pace; every decision
-you make is recorded with a plain-language *why* and an impact graph. Design: [SPEC.md](SPEC.md).
+you make is recorded with a plain-language *why* and an impact graph. Design: [SPEC.md](SPEC.md) · Architecture (diagrams): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## How it looks
 
