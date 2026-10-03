@@ -4,6 +4,29 @@ A Claude Code plugin for one focused hour with agents: you build the core with t
 background workers do related side tasks in their own git worktrees and open PRs at your review pace; every decision
 you make is recorded with a plain-language *why* and an impact graph. Design: [SPEC.md](SPEC.md).
 
+## How it looks
+
+**One Focus Hour**: you decide and build the core; workers reach you only at checkpoints.
+
+![One Focus Hour](docs/images/flow-hour.png)
+
+**The Focus map**: decisions and tasks as a flow, one lane per feature area (docked in VS Code / Cursor).
+
+![Focus map overview](docs/images/01-overview.png)
+
+| Select a decision: what it builds on (blue) and what it affects (red), across lanes | Change a decision: its branch dies until each node is kept or decided again |
+|---|---|
+| ![Impact across lanes](docs/images/02-impact-cross-lane.png) | ![Dead branch](docs/images/03-dead-branch.png) |
+| **Review a task**: machine checks apart from agent claims; predict before opening the PR | **A smoke detector stopped a worker**: resume it, label the stop, or drop it |
+| ![Review a task](docs/images/04-review-task.png) | ![Stopped task](docs/images/05-stopped-task.png) |
+
+**A worker task, end to end** and **what a change of mind does**:
+
+![Worker flow](docs/images/flow-worker.png)
+![Change of mind](docs/images/flow-change.png)
+
+<sub>Sidebar and light theme: [06-sidebar.png](docs/images/06-sidebar.png) · [07-light.png](docs/images/07-light.png). Diagrams are generated from [docs/images/flows.html](docs/images/flows.html).</sub>
+
 ## Install (once per machine)
 
 Needs Claude Code ≥ 2.1.288 (mods), Node ≥ 18, git; `gh` logged in for real PRs.

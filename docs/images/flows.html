@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Focus Hour flows</title>
+<style>
+  :root { --bg:#151514; --surface:#1f1f1d; --lane:#1a1a19; --line:#33332f; --edge:#77766f; --text:#ecebe6; --dim:#9d9c96;
+          --accent:#d97757; --ok:#6cc07f; --info:#6aa8e0; --warn:#e2b04a; --bad:#e8736a; --idle:#6e6d68; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  section { width:1280px; padding:36px 44px 40px; display:none; }
+  section.on { display:block; }
+  h1 { font-size:24px; margin:0 0 4px; letter-spacing:-.01em; }
+  .sub { color:var(--dim); margin-bottom:26px; font-size:15px; }
+  .lane { background:var(--lane); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+  .lane-h { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); margin-bottom:10px; }
+  .row { display:flex; align-items:center; gap:10px; flex-wrap:nowrap; }
+  .box { background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:9px 12px; min-width:0; }
+  .box b { display:block; font-size:13.5px; }
+  .box span { color:var(--dim); font-size:12.5px; }
+  .box.ok { border-color:var(--ok); } .box.info { border-color:var(--info); } .box.warn { border-color:var(--warn); }
+  .box.bad { border-color:var(--bad); border-style:dashed; } .box.accent { border-color:var(--accent); }
+  .box.dim { opacity:.45; }
+  .arrow { color:var(--edge); font-size:20px; flex:none; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; vertical-align:1px; }
+  .note { color:var(--dim); font-size:13px; margin-top:8px; }
+  .tag { display:inline-block; font-size:11px; padding:1px 7px; border-radius:999px; border:1px solid var(--line); color:var(--dim); margin-left:6px; }
+  /* timeline */
+  .tl { position:relative; height:64px; margin:6px 0 4px; }
+  .tl .bar { position:absolute; left:0; right:0; top:28px; height:4px; background:var(--line); border-radius:2px; }
+  .tl .cp { position:absolute; top:12px; transform:translateX(-50%); text-align:center; font-size:12px; color:var(--dim); }
+  .tl .cp i { display:block; width:14px; height:14px; border-radius:50%; background:var(--accent); margin:3px auto 0; border:3px solid var(--bg); }
+  .tl .early i { background:var(--bad); }
+  .grid2 { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; }
+  .gate { display:grid; grid-template-columns: repeat(5, 1fr); gap:8px; }
+  .gate .box { text-align:left; }
+  .legend { display:flex; gap:18px; color:var(--dim); font-size:12.5px; margin-top:14px; }
+  svg text { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- 1. THE HOUR -->
+<section id="hour">
+  <h1>One Focus Hour</h1>
+  <div class="sub">You build the core with the main session and decide. Workers do side tasks in the background and reach you only at checkpoints.</div>
+  <div class="tl">
+    <div class="bar"></div>
+    <div class="cp" style="left:0%">0′<i style="background:var(--ok)"></i></div>
+    <div class="cp early" style="left:21%">early<i></i></div>
+    <div class="cp" style="left:33.3%">20′<i></i></div>
+    <div class="cp" style="left:66.6%">40′<i></i></div>
+    <div class="cp" style="left:86.6%">52′<i></i></div>
+    <div class="cp" style="left:100%">60′<i style="background:var(--idle)"></i></div>
+  </div>
+  <div class="lane">
+    <div class="lane-h">Main session · you + Claude</div>
+    <div class="row">
+      <div class="box ok"><b>Start hour</b><span>panel opens · resume card</span></div><div class="arrow">→</div>
+      <div class="box info"><b>Decide in batches</b><span>AskUserQuestion, up to 4 at once</span></div><div class="arrow">→</div>
+      <div class="box info"><b>Decisions recorded</b><span>D###.md · why · depends_on · area</span></div><div class="arrow">→</div>
+      <div class="box"><b>Hand off side work</b><span>"give this to a worker"</span></div><div class="arrow">→</div>
+      <div class="box"><b>Build the core</b><span>no pings between checkpoints</span></div>
+    </div>
+  </div>
+  <div class="lane">
+    <div class="lane-h">Workers · background, one worktree per task</div>
+    <div class="row">
+      <div class="box"><b>Queue</b><span>WIP · GPU · scope · review cap</span></div><div class="arrow">→</div>
+      <div class="box ok"><b>Run</b><span>claude -p · model by level</span></div><div class="arrow">→</div>
+      <div class="box warn"><b>Smoke detectors</b><span>stop or escalate</span></div><div class="arrow">→</div>
+      <div class="box"><b>Verify</b><span>own test run · commit</span></div><div class="arrow">→</div>
+      <div class="box info"><b>PR</b><span>at most 2 waiting for you</span></div>
+    </div>
+  </div>
+  <div class="lane">
+    <div class="lane-h">Checkpoints · 20′ / 40′ / 52′, or early when a worker is blocked on you</div>
+    <div class="row">
+      <div class="box accent"><b>Confirm drafts</b><span>✓ / ✗ decisions</span></div><div class="arrow">→</div>
+      <div class="box accent"><b>Predict the diff</b><span>one line, before looking</span></div><div class="arrow">→</div>
+      <div class="box accent"><b>Open PR</b><span>machine checks · agent claims</span></div><div class="arrow">→</div>
+      <div class="box accent"><b>Approve · Rework · Drop</b><span>merge is yours only</span></div><div class="arrow">→</div>
+      <div class="box"><b>Stop hour</b><span>digest + metrics + "resume from"</span></div>
+    </div>
+  </div>
+  <div class="legend"><span><i class="dot" style="background:var(--idle)"></i>0 quiet</span><span><i class="dot" style="background:var(--info)"></i>1 something waits</span><span><i class="dot" style="background:var(--warn)"></i>2 waited &gt; 10′ · notification</span><span><i class="dot" style="background:var(--bad)"></i>3 blocked on you · early checkpoint</span></div>
+</section>
+
+<!-- 2. WORKER -->
+<section id="worker">
+  <h1>A worker task, end to end</h1>
+  <div class="sub">The worker is a foreman: each task gets its own git worktree and its own headless Claude, and nothing reaches you faster than you review.</div>
+  <div class="lane">
+    <div class="lane-h">1 · Dispatch</div>
+    <div class="row">
+      <div class="box"><b>"Write tests for sub()"</b><span>you, in the chat</span></div><div class="arrow">→</div>
+      <div class="box info"><b>Level?</b><span>L1 haiku · L2 sonnet · L3 opus</span></div><div class="arrow">→</div>
+      <div class="box"><b>focus task add</b><span>title · scope tests/ · based on D005</span></div><div class="arrow">→</div>
+      <div class="box"><b>T4 queued</b><span>.focus/state/tasks/T4.json</span></div>
+    </div>
+  </div>
+  <div class="lane">
+    <div class="lane-h">2 · Gates, every 3 seconds</div>
+    <div class="gate">
+      <div class="box"><b>WIP</b><span>running &lt; 3</span></div>
+      <div class="box"><b>Resource</b><span>gpu: 1 job at a time</span></div>
+      <div class="box"><b>Scope lock</b><span>no other task, no file you are editing</span></div>
+      <div class="box"><b>Review cap</b><span>&lt; 2 PRs waiting for you</span></div>
+      <div class="box"><b>Decision alive</b><span>else ⏸ paused</span></div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="lane">
+      <div class="lane-h">3 · Run</div>
+      <div class="row">
+        <div class="box ok"><b>git worktree</b><span>branch focus/T4</span></div><div class="arrow">→</div>
+        <div class="box ok"><b>claude -p</b><span>read/edit · run tests only</span></div><div class="arrow">→</div>
+        <div class="box"><b>Packet</b><span>summary · risks</span></div>
+      </div>
+      <div class="note">Every tool call passes the smoke detectors:</div>
+      <div class="row" style="margin-top:8px">
+        <div class="box bad"><b>Safety → stop, ask you</b><span>edit outside scope · delete an existing test · git push, rm -rf · diff &gt; 300 lines</span></div>
+        <div class="box warn"><b>Technical → one level up</b><span>same error ×3 · &gt; 60 tool calls · tests fail</span></div>
+      </div>
+    </div>
+    <div class="lane">
+      <div class="lane-h">4 · Verify, publish, review</div>
+      <div class="row">
+        <div class="box"><b>Own test run</b><span>never trusts the agent</span></div><div class="arrow">→</div>
+        <div class="box"><b>Commit</b><span>by the worker</span></div><div class="arrow">→</div>
+        <div class="box info"><b>PR #15</b><span>when the cap has room</span></div>
+      </div>
+      <div class="note">PR body: <b>machine checks</b> (scope, tests, mocks, diff, test run) apart from <b>agent claims</b>, plus ⚠ stale.</div>
+      <div class="row" style="margin-top:8px">
+        <div class="box accent"><b>Approve &amp; merge</b><span>squash · worktree removed</span></div>
+        <div class="box"><b>Rework "…"</b><span>same session continues</span></div>
+        <div class="box"><b>Drop</b><span>PR closed</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. CHANGE OF MIND -->
+<section id="change">
+  <h1>When you change a decision, its branch dies</h1>
+  <div class="sub">Everything built on the old answer is marked dead and stays attached to it, so you see exactly what the change costs. Each dead node is then kept or decided again.</div>
+  <div class="grid2">
+    <div class="lane">
+      <div class="lane-h">Before · Persistence</div>
+      <svg width="100%" height="250" viewBox="0 0 560 250" preserveAspectRatio="xMinYMid meet">
+        <defs><marker id="a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#77766f"/></marker></defs>
+        <path d="M170,60 C200,60 200,60 230,60" stroke="#77766f" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
+        <path d="M170,60 C200,60 200,160 230,160" stroke="#77766f" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
+        <path d="M390,60 C410,60 410,60 430,60" stroke="#77766f" stroke-width="1.6" stroke-dasharray="1.5 3.5" fill="none" marker-end="url(#a)"/>
+        <g><rect x="10" y="35" width="160" height="50" rx="8" fill="#1f1f1d" stroke="#6cc07f"/><text x="24" y="56" fill="#ecebe6" font-size="12" font-weight="700">D005</text><text x="24" y="73" fill="#ecebe6" font-size="12">JSON snapshot</text></g>
+        <g><rect x="230" y="35" width="160" height="50" rx="8" fill="#1f1f1d" stroke="#6cc07f"/><text x="244" y="56" fill="#ecebe6" font-size="12" font-weight="700">D006</text><text x="244" y="73" fill="#ecebe6" font-size="12">tmp file + rename</text></g>
+        <g><rect x="230" y="135" width="160" height="50" rx="8" fill="#1f1f1d" stroke="#6cc07f"/><text x="244" y="156" fill="#ecebe6" font-size="12" font-weight="700">D007</text><text x="244" y="173" fill="#ecebe6" font-size="12">TTL as absolute time</text></g>
+        <g><rect x="430" y="40" width="120" height="40" rx="20" fill="#1f1f1d" stroke="#6cc07f"/><text x="446" y="64" fill="#ecebe6" font-size="12">T4 benchmark</text></g>
+      </svg>
+    </div>
+    <div class="lane">
+      <div class="lane-h">After · "use an append-only log" (revisits D005)</div>
+      <svg width="100%" height="250" viewBox="0 0 560 250" preserveAspectRatio="xMinYMid meet">
+        <defs>
+          <marker id="b" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#e8736a"/></marker>
+          <marker id="c" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#77766f"/></marker>
+        </defs>
+        <path d="M170,60 C200,60 200,60 230,60" stroke="#e8736a" stroke-width="1.5" stroke-dasharray="4 3" opacity=".7" fill="none" marker-end="url(#b)"/>
+        <path d="M170,60 C200,60 200,160 230,160" stroke="#e8736a" stroke-width="1.5" stroke-dasharray="4 3" opacity=".7" fill="none" marker-end="url(#b)"/>
+        <path d="M390,60 C410,60 410,60 430,60" stroke="#e8736a" stroke-width="1.5" stroke-dasharray="4 3" opacity=".7" fill="none" marker-end="url(#b)"/>
+        <path d="M90,85 C90,215 120,225 150,225" stroke="#77766f" stroke-width="1.5" stroke-dasharray="5 4" fill="none" marker-end="url(#c)"/>
+        <g opacity=".6"><rect x="10" y="35" width="160" height="50" rx="8" fill="#1f1f1d" stroke="#6e6d68"/><text x="24" y="56" fill="#9d9c96" font-size="12" font-weight="700">D005 replaced</text><text x="24" y="73" fill="#9d9c96" font-size="12" text-decoration="line-through">JSON snapshot</text></g>
+        <g><rect x="230" y="35" width="160" height="50" rx="8" fill="#151514" stroke="#e8736a" stroke-dasharray="4 3"/><text x="244" y="56" fill="#e8736a" font-size="12" font-weight="700">D006 dead</text><text x="244" y="73" fill="#9d9c96" font-size="12" text-decoration="line-through">tmp file + rename</text></g>
+        <g><rect x="230" y="135" width="160" height="50" rx="8" fill="#151514" stroke="#e8736a" stroke-dasharray="4 3"/><text x="244" y="156" fill="#e8736a" font-size="12" font-weight="700">D007 dead</text><text x="244" y="173" fill="#9d9c96" font-size="12" text-decoration="line-through">TTL as absolute time</text></g>
+        <g><rect x="430" y="40" width="120" height="40" rx="20" fill="#151514" stroke="#e8736a" stroke-dasharray="4 3"/><text x="446" y="64" fill="#9d9c96" font-size="12">⏸ T4 paused</text></g>
+        <g><rect x="150" y="200" width="170" height="44" rx="8" fill="#1f1f1d" stroke="#6aa8e0"/><text x="164" y="220" fill="#ecebe6" font-size="12" font-weight="700">D008 new</text><text x="164" y="236" fill="#ecebe6" font-size="12">append-only log</text></g>
+      </svg>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="lane">
+      <div class="lane-h">Still holds · D007</div>
+      <div class="row"><div class="box info"><b>D008</b><span>append-only log</span></div><div class="arrow">→</div><div class="box ok"><b>D007 alive again</b><span>now built on D008</span></div></div>
+      <div class="note">Its paused tasks go back to the queue.</div>
+    </div>
+    <div class="lane">
+      <div class="lane-h">Re-decide · D006</div>
+      <div class="row"><div class="box bad"><b>D006 dead</b><span>does not fit a log</span></div><div class="arrow">→</div><div class="box info"><b>Claude asks again</b><span>tagged D006 · the answer replaces it</span></div></div>
+      <div class="note">Running tasks are told what changed; open PRs get a ⚠ stale flag.</div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const id = location.hash.slice(1) || 'hour'
+  document.getElementById(id).classList.add('on')
+</script>
+</body>
+</html>
