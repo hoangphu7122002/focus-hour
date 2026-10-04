@@ -6,7 +6,7 @@
       "name": "focus-hour",
       "source": "./",
       "description": "One focused hour with Claude Code: decision log with impact, review-paced background workers with real PRs, and a dashboard pane",
-      "version": "0.1.9"
+      "version": "0.2.0"
     }
   ]
 }
