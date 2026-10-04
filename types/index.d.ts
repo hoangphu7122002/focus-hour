@@ -50,7 +50,7 @@ export type FocusTask = {
 
 export type FocusStatus = {
   root: string
-  config: { predict: string; paneOutsideCheckpoint: string; reviewCap: number; mode: string; testCommand: string }
+  config: { mainEffort: { ask: string; code: string } | null; predict: string; paneOutsideCheckpoint: string; reviewCap: number; mode: string; testCommand: string }
   session: {
     active: boolean
     id?: string

@@ -23,7 +23,7 @@ const fmt = (ms = 0) => {
 const bg = (p: Promise<unknown>) => void p.catch(() => undefined)
 
 // Module state: reset on reload, rebuilt by session.start.
-const m = { root: '', cliPath: '', enabled: false, isWorker: false, lastJson: '', lastCheckpoint: 0, lastLevel: 0, turnStartedAt: 0 }
+const m = { root: '', cliPath: '', enabled: false, isWorker: false, lastJson: '', lastCheckpoint: 0, lastLevel: 0, turnStartedAt: 0, codingTurn: '', manualEffort: false, effortNow: '' }
 
 async function cli($: EngineInterface, args: string[], stdin?: string) {
   const r = await $.process.run(['node', m.cliPath, ...args], { cwd: m.root, stdin, timeoutMs: 60_000 })
@@ -178,8 +178,35 @@ export const register: Register = on => {
     return note ? { ...ran, context: [...(ran.context ?? []), note] } : ran
   })
 
+  // Main session effort (config mainEffort): a turn starts at `ask` (questions, decisions) and moves to `code` once it
+  // edits files. Only during an active focus hour in focus mode; a /effort typed by you turns this off.
+  on('turn.start', async ($, e, next) => {
+    m.codingTurn = ''
+    return next(e)
+  })
+  on('tool.call', async ($, e, next) => {
+    if (['Edit', 'Write', 'MultiEdit', 'NotebookEdit'].includes(String(e.tool))) {
+      const s = await read($, status)
+      if (s?.session.active) m.codingTurn = 'current'
+    }
+    return next(e)
+  })
+  on('turn.step', async function* ($, e, next) {
+    const s = await read($, status)
+    const want = s?.config.mainEffort
+    const steer = m.enabled && !m.isWorker && !m.manualEffort && e.agentId === undefined && want && s?.session.active && s.session.mode !== 'observe'
+    if (!steer) return yield* next(e)
+    const effort = (m.codingTurn ? want.code : want.ask) as 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    if (effort !== m.effortNow) {
+      m.effortNow = effort
+      bg(cli($, ['event', 'effort', effort]))
+    }
+    return yield* next({ ...e, effort })
+  })
+
   // Seconds the human waits on the main session (metric ⑦).
   on('prompt.submit', async ($, e, next) => {
+    if (/^\s*\/effort\b/.test(e.text)) m.manualEffort = true // you took effort into your own hands
     m.turnStartedAt = await $.clock.now()
     return next(e)
   })
@@ -196,7 +223,7 @@ export const register: Register = on => {
     const { Box, Text, Button } = $.ui.resolve(e)
     return (
       <Box flexDirection="row" gap={1}>
-        <Text dimColor={!s.session.current && s.attention.level === 0} color={LEVEL_COLOR[s.attention.level]} wrap="truncate">{headline(s)}{s.attention.level >= 2 ? ` · ${s.attention.reason}` : ''}</Text>
+        <Text dimColor={!s.session.current && s.attention.level === 0} color={LEVEL_COLOR[s.attention.level]} wrap="truncate">{headline(s)}{m.effortNow && s.session.active ? ` · effort ${m.effortNow}` : ''}{s.attention.level >= 2 ? ` · ${s.attention.reason}` : ''}</Text>
         <Button key="open" plain label="open" onPress={() => openPane($)} />
       </Box>
     )

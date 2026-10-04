@@ -4,7 +4,7 @@ import type { FocusStatus } from '../types'
 
 const STATUS: FocusStatus = {
   root: '/repo',
-  config: { predict: 'optional', paneOutsideCheckpoint: 'collapsed', reviewCap: 2, mode: 'focus', testCommand: 'make test' },
+  config: { mainEffort: { ask: 'low', code: 'medium' }, predict: 'optional', paneOutsideCheckpoint: 'collapsed', reviewCap: 2, mode: 'focus', testCommand: 'make test' },
   session: { active: true, id: '2026-10-03-1', mode: 'focus', left: 1_800_000, current: 2, upcoming: 3, inMs: 60_000, inWindow: true, collapsed: false },
   flow: { text: 'baseline ✓ → sweep ▶', derived: false },
   decisions: [
@@ -88,3 +88,27 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(calls.some(c => c.args[0] === 'predict' && c.args[1] === 'T1')).toBe(true)
   })
 }
+
+test('main session effort: a turn asks at low, moves to medium once it edits, and /effort hands control back', async ($, on) => {
+  fakeRepo(on)
+  const seen: unknown[] = []
+  on('turn.start', ($: unknown, e: { turnId: string }) => ({ turnId: e.turnId }))
+  on('turn.step', async function* ($: unknown, e: { turnId: string; index: number; effort?: unknown }) {
+    seen.push(e.effort)
+    return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'end_turn', usage: null }
+  })
+  on('tool.call', { tool: 'Edit' }, () => ({ result: { filePath: 'a', oldString: 'x', newString: 'y' } }))
+  on('prompt.submit', ($: unknown, e: { text: string }) => ({ text: e.text }))
+  await $.session.start({ cwd: '/repo', surface: null, isInteractive: true } as never)
+  const step = async (index: number) => {
+    const stream = $.turn.step({ turnId: 't1', index, model: 'claude-opus-5-5', effort: 'high', messageCount: 1 } as never)
+    for await (const _ of stream as AsyncIterable<unknown>) { /* drain */ }
+  }
+  await $.turn.start({ text: 'which engine?', turnId: 't1' } as never)
+  await step(0)
+  await $.tool.call({ tool: 'Edit', file_path: '/repo/a.js', old_string: 'x', new_string: 'y' } as never)
+  await step(1)
+  await $.prompt.submit({ text: '/effort high' } as never)
+  await step(2)
+  expect(seen).toEqual(['low', 'medium', 'high'])
+})

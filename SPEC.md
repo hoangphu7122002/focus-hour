@@ -65,6 +65,7 @@ working (as text) if mods are unavailable.
   "checkpoints": [20, 40, 52],          // minutes of a 60-min hour; scaled to focusMinutes
   "checkpointWindowMinutes": 3,
   "attention": { "mode": "hybrid", "waitWarnMinutes": 10, "minGapMinutes": 10 }, // hybrid | fixed
+  "mainEffort": { "ask": "low", "code": "medium" }, // main session, during a focus hour; null = hands off
   "paneOutsideCheckpoint": "collapsed", // full | collapsed | hidden
   "wip": { "running": 3, "reviewCap": 2, "readyBuffer": null }, // PRs waiting for you · finished work held back
   "resources": {},                      // e.g. { "gpu": 1 } — max concurrent tasks holding it
@@ -236,6 +237,14 @@ press (or `focus approve`). Without a GitHub remote the task stays a local branc
 - **Flow**: the main session keeps `.focus/state/flow.md` with `focus flow set "…"` when a step completes; if stale,
   the pane derives it from decisions and tasks.
 - **End-of-hour digest**: `focus stop` writes `.focus/sessions/<date>-<n>.md` (decisions, tasks, metrics, "resume from").
+
+## 8b. Effort
+
+- **Workers**: each level sets model and effort (`L1 haiku/low`, `L2 sonnet/medium`, `L3 opus/high`), passed to
+  `claude -p --effort`; escalation raises both.
+- **Main session** (the mod, during an active focus hour in focus mode): every turn starts at `mainEffort.ask` (asking,
+  grilling, choosing between options) and moves to `mainEffort.code` for the rest of the turn once it edits a file.
+  Typing `/effort …` yourself turns this off for the session. The effort in use shows in the status band.
 
 ## 9. Trial
 

@@ -168,6 +168,7 @@ try {
       if (sub === 'turn') logEvent(p, 'turn', { ms: Number(flags.ms) || 0 })
       else if (sub === 'ask') logEvent(p, 'ask', { questions: Number(flags.questions) || 1, tagged: !!flags.tagged })
       else if (sub === 'pane') logEvent(p, 'pane', { action: rest[0] ?? '' })
+      else if (sub === 'effort') logEvent(p, 'effort', { level: rest[0] ?? '' })
       break
     }
     case 'decision':
