@@ -81,4 +81,5 @@ In a terminal session, `/focus` opens the same view as a pane. Everything is als
 ```bash
 npm test                     # CLI unit tests + mod tests (claude plugin test)
 claude plugin validate .
+scripts/release.sh 0.2.0 "what changed"   # bump, test, commit, push, GitHub release, update local install
 ```
