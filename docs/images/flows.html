@@ -66,11 +66,11 @@
   <div class="lane">
     <div class="lane-h">Workers · background, one worktree per task</div>
     <div class="row">
-      <div class="box"><b>Queue</b><span>WIP · GPU · scope · review cap</span></div><div class="arrow">→</div>
+      <div class="box"><b>Queue</b><span>WIP · GPU · scope lock</span></div><div class="arrow">→</div>
       <div class="box ok"><b>Run</b><span>claude -p · model by level</span></div><div class="arrow">→</div>
       <div class="box warn"><b>Smoke detectors</b><span>stop or escalate</span></div><div class="arrow">→</div>
       <div class="box"><b>Verify</b><span>own test run · commit</span></div><div class="arrow">→</div>
-      <div class="box info"><b>PR</b><span>at most 2 waiting for you</span></div>
+      <div class="box info"><b>PR</b><span>max 2 open · rest held as ready</span></div>
     </div>
   </div>
   <div class="lane">
@@ -89,7 +89,7 @@
 <!-- 2. WORKER -->
 <section id="worker">
   <h1>A worker task, end to end</h1>
-  <div class="sub">The worker is a foreman: each task gets its own git worktree and its own headless Claude, and nothing reaches you faster than you review.</div>
+  <div class="sub">The worker is a foreman: each task gets its own git worktree and its own headless Claude. Workers never wait on you, but PRs reach you only as fast as you review.</div>
   <div class="lane">
     <div class="lane-h">1 · Dispatch</div>
     <div class="row">
@@ -105,7 +105,7 @@
       <div class="box"><b>WIP</b><span>running &lt; 3</span></div>
       <div class="box"><b>Resource</b><span>gpu: 1 job at a time</span></div>
       <div class="box"><b>Scope lock</b><span>no other task, no file you are editing</span></div>
-      <div class="box"><b>Review cap</b><span>&lt; 2 PRs waiting for you</span></div>
+      <div class="box"><b>Pile limit</b><span>optional cap on finished work</span></div>
       <div class="box"><b>Decision alive</b><span>else ⏸ paused</span></div>
     </div>
   </div>
@@ -128,7 +128,7 @@
       <div class="row">
         <div class="box"><b>Own test run</b><span>never trusts the agent</span></div><div class="arrow">→</div>
         <div class="box"><b>Commit</b><span>by the worker</span></div><div class="arrow">→</div>
-        <div class="box info"><b>PR #15</b><span>when the cap has room</span></div>
+        <div class="box info"><b>PR #15</b><span>max 2 open · the rest wait as ready</span></div>
       </div>
       <div class="note">PR body: <b>machine checks</b> (scope, tests, mocks, diff, test run) apart from <b>agent claims</b>, plus ⚠ stale.</div>
       <div class="row" style="margin-top:8px">

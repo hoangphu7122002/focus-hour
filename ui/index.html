@@ -140,7 +140,7 @@ let graph = null
 const DCOLOR = { active: 'var(--ok)', draft: 'var(--info)', dead: 'var(--bad)', superseded: 'var(--idle)' }
 const DLABEL = { active: 'active', draft: 'draft', dead: 'dead · revive or re-decide', superseded: 'replaced' }
 const TCOLOR = { paused: 'var(--idle)', queued: 'var(--idle)', running: 'var(--ok)', stopped: 'var(--bad)', ready: 'var(--info)', review: 'var(--info)' }
-const TLABEL = { paused: 'paused · its decision is dead', queued: 'queued', running: 'running', stopped: 'stopped', ready: 'finishing', review: 'waiting for review' }
+const TLABEL = { paused: 'paused · its decision is dead', queued: 'queued', running: 'running', stopped: 'stopped', ready: 'done · waits for a PR slot', review: 'waiting for review' }
 
 async function act(args) {
   const r = await fetch('/api/act', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args }) }).then(r => r.json())

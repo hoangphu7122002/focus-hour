@@ -66,7 +66,7 @@ working (as text) if mods are unavailable.
   "checkpointWindowMinutes": 3,
   "attention": { "mode": "hybrid", "waitWarnMinutes": 10, "minGapMinutes": 10 }, // hybrid | fixed
   "paneOutsideCheckpoint": "collapsed", // full | collapsed | hidden
-  "wip": { "running": 3, "reviewCap": 2 },
+  "wip": { "running": 3, "reviewCap": 2, "readyBuffer": null }, // PRs waiting for you · finished work held back
   "resources": {},                      // e.g. { "gpu": 1 } — max concurrent tasks holding it
   "levels": {
     "L1": { "model": "haiku",  "effort": "low",    "maxTurns": 30 },
@@ -152,9 +152,12 @@ A queued task starts when all hold:
 - running tasks < `wip.running`;
 - each of its `resources` has a free slot;
 - its scope does not overlap a running task's scope, nor a file the main checkout has modified (scope lock);
-- (focus mode) tasks waiting for review < `reviewCap`.
+- (optional) finished-but-unpublished tasks < `wip.readyBuffer` (unset: no limit).
 
-A finished task is committed and held as `ready`; it is pushed and gets a PR only while waiting-for-review < `reviewCap`.
+The review cap holds PRs, not workers: a finished task is committed and held as `ready`; it is pushed and gets a PR
+only while PRs waiting for review < `reviewCap`, oldest first. So workers never idle on you, and you never face more
+than `reviewCap` open PRs; when finished work piles up behind a full queue (`attention.readyWarn`), the pane pulls a
+checkpoint early.
 
 ### 6.3 Run
 

@@ -97,7 +97,7 @@ stateDiagram-v2
     running --> queued: technical stop, level up
     running --> stopped: safety stop
     running --> ready: done + tests
-    ready --> review: PR opened
+    ready --> review: PR slot free
     review --> approved: Approve
     review --> queued: Rework
     review --> dropped: Drop
@@ -105,8 +105,9 @@ stateDiagram-v2
     stopped --> dropped: Drop
 ```
 
-- **Gates**: fewer than 3 running, the GPU (or other resource) is free, no other task or open edit of yours touches
-  the same files, and fewer than 2 PRs are waiting for you.
+- **Gates**: fewer than 3 running, the GPU (or other resource) is free, and no other task or open edit of yours
+  touches the same files. **Review cap**: at most 2 PRs wait for you; further finished work stays `ready` (committed,
+  not pushed) and becomes a PR as soon as you approve or drop one, so workers never wait on you.
 - **Safety stop**: an edit outside the task's scope, a deleted existing test, an irreversible command, a diff over 300
   lines. **Technical stop**: the same error 3 times, over 60 tool calls, failing tests; the task reruns one level up.
 

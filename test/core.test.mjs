@@ -130,7 +130,7 @@ test('impact tree is transitive and cycle-safe', () => {
   assert.equal(tree[0].children[0].children.length, 0)
 })
 
-test('scheduler: running cap, resources, scope lock, dirty files, review cap', () => {
+test('scheduler: running cap, resources, scope lock, dirty files; the review cap holds PRs, not workers', () => {
   const cfg = merge(DEFAULTS, { resources: { gpu: 1 }, wip: { running: 2, reviewCap: 2 } })
   const T = (id, status, scope, resources = []) => ({ id, status, scope, resources, based_on: [] })
   const tasks = [T('T1', 'running', ['src/a/'], ['gpu']), T('T2', 'queued', ['docs/'], ['gpu']), T('T3', 'queued', ['src/a/x/']), T('T4', 'queued', ['tests/']), T('T5', 'queued', ['notes/'])]
@@ -138,9 +138,13 @@ test('scheduler: running cap, resources, scope lock, dirty files, review cap', (
   assert.match(blockedReason(tasks[2], { tasks, cfg }), /scope locked by T1/)
   assert.match(blockedReason(tasks[3], { tasks, cfg, dirtyFiles: ['tests/test_x.py'] }), /you are editing/)
   assert.deepEqual(pickRunnable({ tasks, cfg }), ['T4'])
-  const full = [...tasks, T('T6', 'review', ['z/']), T('T7', 'ready', ['y/'])]
-  assert.match(blockedReason(tasks[4], { tasks: full.filter(t => t.id !== 'T1'), cfg }), /review queue full/)
-  assert.equal(blockedReason(tasks[4], { tasks: full.filter(t => t.id !== 'T1'), cfg: { ...cfg, mode: 'observe' } }), null)
+  // PRs waiting for you do not stop the workers; finished work waits as "ready" (B)
+  const full = [...tasks, T('T6', 'review', ['z/']), T('T7', 'review', ['w/']), T('T8', 'ready', ['y/'])]
+  assert.equal(blockedReason(tasks[4], { tasks: full.filter(t => t.id !== 'T1'), cfg }), null)
+  // unless a ready buffer is set and full
+  const buffered = merge(cfg, { wip: { readyBuffer: 1 } })
+  assert.match(blockedReason(tasks[4], { tasks: full.filter(t => t.id !== 'T1'), cfg: buffered }), /piled up/)
+  assert.equal(blockedReason(tasks[4], { tasks: full.filter(t => t.id !== 'T1'), cfg: { ...buffered, mode: 'observe' } }), null)
 })
 
 test('detectors: scope, tests removed, irreversible, diff size, budget, loop', () => {
@@ -214,7 +218,8 @@ test('attention rises with what waits on you and pulls a checkpoint early, once 
   assert.equal(one.level, 1)
   const old = S.attention(p, cfg, { tasks: [T('T1', 'review', { publishedAt: at(1) })], decisions: [] }, at(13))
   assert.equal(old.level, 2)
-  const blocked = [T('T1', 'review', { publishedAt: at(4) }), T('T2', 'review', { publishedAt: at(4) }), T('T3', 'queued')]
+  const blocked = [T('T1', 'review', { publishedAt: at(4) }), T('T2', 'review', { publishedAt: at(4) }), T('T3', 'ready'), T('T4', 'ready')]
+  assert.equal(S.attention(p, cfg, { tasks: blocked.slice(0, 3), decisions: [] }, at(6)).level, 2) // one finished behind: yellow
   const hot = S.attention(p, cfg, { tasks: blocked, decisions: [] }, at(6))
   assert.equal(hot.level, 3)
   assert.equal(hot.autoOpen, true)
