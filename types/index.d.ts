@@ -76,6 +76,7 @@ export type FocusStatus = {
   }
   attention: { level: 0 | 1 | 2 | 3; reason: string; autoOpen: boolean }
   requests: { id: string; type: string; text: string; about?: string }[]
+  agents?: { role: "builder" | "reviewer"; name: string; task: string; model: string; since: number | null; slot: number | null; rework: boolean }[]
   features: { current: string | null; roadmap: string | null; list: { id: string; name: string; goal: string; ac: string[]; status: string; depends: string[]; tasks: number; merged: number }[] }
   smoke: { sha: string; pass: boolean; at: number; seconds: number; tail: string } | null
   lessons: number

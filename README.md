@@ -57,6 +57,10 @@ Edit `.focus/config.json` for anything that differs from the defaults (`focus de
 `"resources": { "gpu": 1 }`, `"language": { "chat": "vi" }`, `"roadmap": "docs/roadmap.md"`,
 `"smokeCommand": "make demo"`, or `"slots"` for per-task ports/DBs.
 
+**Scoped with bach-workflow?** Run `/bach:demo-scope`, then `focus init` in the repo: it picks up the roadmap, the
+review lessons and `stack.toml`; build each feature with `/focus-plan <roadmap>#F<n>` instead of `/bach:pr-team`
+(SPEC §7d).
+
 **What belongs where.** The plugin holds code and generic rules; the repo holds only its own data
 (`.focus/config.json`, `.focus/lessons.md`, `.focus/sessions/`, `docs/decisions/`, its roadmap). A rule for this repo
 is a lesson (`focus lesson "[backend/] …"`); an idea for Focus Hour itself is `focus plugin-note "…"`, kept in

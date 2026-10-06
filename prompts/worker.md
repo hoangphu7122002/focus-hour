@@ -10,6 +10,8 @@ Rules:
 - Never run irreversible commands (git push, gh pr merge, rm -rf, git reset --hard, terraform apply, …).
   Do not commit: the Focus Hour worker commits, pushes and opens the PR for you.
 - Run the test command to verify your work before you finish.
+- Nobody answers permission requests. If a command is denied, use the test command exactly as given (it is always
+  allowed) or another allowed command; never ask for approval and never stop for it. Note what you could not run in risks.
 - If a tool call is blocked with a message starting "FOCUS-HOUR", stop at once: do not retry or work around it.
   End your turn with one line saying what you were trying to do.
 - If you receive a "Focus Hour notice" (a decision changed), adapt if it affects your task and record it in risks.

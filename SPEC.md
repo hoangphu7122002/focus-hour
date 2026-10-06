@@ -268,6 +268,25 @@ press (or `focus approve`). Without a GitHub remote the task stays a local branc
   `focus compare --repo a --repo b` puts PR numbers of any GitHub repos side by side, plus this repo's Focus Hour
   numbers (overrides, review blockers, smoke failures, lessons).
 
+### 7d. With bach-workflow (scope with bach, build with Focus Hour)
+
+`bach:demo-scope` takes an idea to `scope/<run>/roadmap.md` + `specs/spec.md`; Focus Hour replaces `bach:pr-team` for
+the build. Nothing is converted: `focus init` finds the newest roadmap, `.claude/pr-team/review-lessons.md` (lessons
+keep bach's `- [folder] rule — source` lines; `[all]` = every scope) and `stack.toml` (`"slots": { "stack": "auto" }`:
+bach's stack CLI leases a slot per builder and per reviewer, tests run through `stack run --db test --heavy`).
+
+| bach pr-team | Focus Hour |
+|---|---|
+| lead (plans, never codes) | the main session + `focus-plan` (you code the core) |
+| `builder-N` teammates, long-lived, claim tasks | `builder-T#`: one `claude -p` per task, spawned on demand, exits when done |
+| `reviewer-pr<N>` on demand (`max_reviewers` 3), kept for the fix round | the same: `review.maxParallel` 3; the re-check resumes its session and reads only the fix diff |
+| `pr-watcher` teammate | the worker's watcher (`watch.intervalSeconds`) |
+| merge gate = label, advisory | draft PR + `approve --override`, counted |
+| tmux + agent teams | headless; the Focus map in VS Code / Cursor |
+
+One executor per repo: while a pr-team's builders or watcher are in `~/.claude/teams/*/config.json` with this repo as
+cwd, Focus Hour starts no new task (both would open PRs and answer the same comments).
+
 ## 8. The hour and the pane
 
 ```text
