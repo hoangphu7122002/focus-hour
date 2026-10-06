@@ -1,6 +1,6 @@
 {
   "name": "focus-hour",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "One focused hour with Claude Code: decision log with impact, review-paced background workers with real PRs, and a dashboard pane",
   "types": "./types/index.d.ts",
   "author": {
