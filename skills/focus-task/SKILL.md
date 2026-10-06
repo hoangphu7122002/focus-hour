@@ -13,10 +13,14 @@ Turn the request into one Focus Hour task and queue it. Do not do the task yours
      L3 (hard bugs, design, analysing results) — see `.focus/config.json` "levels" for the models;
    - **resources**: only names declared in `.focus/config.json` "resources" (e.g. `gpu`), if the task needs one;
    - **based_on**: the decision ids (`focus decision list`) the task relies on;
+   - **feature** / **after**: the roadmap feature it belongs to (`focus feature`) and a task it must wait for
+     (same files, or a contract it needs). A whole feature goes through `focus-plan` instead;
    - **spec**: what "done" means, the test to run, anything the worker must not touch.
 2. Confirm with ONE AskUserQuestion (tag `-` in `metadata.source`, as `focus:-`): the level (recommended first, with
    the model and a cost hint) and, if unsure, the scope. Fold it into a pending batch when there is one.
 3. Run:
-   `focus task add --title "…" --scope a/,b/ --level L2 [--resources gpu] [--based-on D012,D014] --spec "…"`
+   `focus task add --title "…" --scope a/,b/ --level L2 [--resources gpu] [--based-on D012,D014] [--feature F2] [--after T7] --spec "…"`
 4. Reply in one line: the task id and whether it starts now or what it waits for. Do not report on it again until
    the user asks; they review it at the next checkpoint.
+
+Feedback about Focus Hour itself is not a task of this repo: record it with `focus plugin-note "…"`.

@@ -52,8 +52,15 @@ Restart Claude Code and the editor afterwards. Update later with `claude plugin 
 cd <repo> && focus init     # writes .focus/config.json (test command, base branch), gitignores .focus/state/
 ```
 
+`focus init` also detects the stack's permission preset and prints `focus doctor` (what the repo still misses).
 Edit `.focus/config.json` for anything that differs from the defaults (`focus defaults` prints them), e.g.
-`"resources": { "gpu": 1 }` for a machine only one task may use at a time.
+`"resources": { "gpu": 1 }`, `"language": { "chat": "vi" }`, `"roadmap": "docs/roadmap.md"`,
+`"smokeCommand": "make demo"`, or `"slots"` for per-task ports/DBs.
+
+**What belongs where.** The plugin holds code and generic rules; the repo holds only its own data
+(`.focus/config.json`, `.focus/lessons.md`, `.focus/sessions/`, `docs/decisions/`, its roadmap). A rule for this repo
+is a lesson (`focus lesson "[backend/] …"`); an idea for Focus Hour itself is `focus plugin-note "…"`, kept in
+`~/.focus-hour/`, never in the repo. See [SPEC.md §3](SPEC.md#3-packaging).
 
 ## Each hour
 
@@ -65,6 +72,9 @@ run `focus ui` in a terminal (dashboard at http://127.0.0.1:7777 + workers), the
 | start | `/focus start` (or the pane's *Start hour*); `--observe` for a baseline session, `--difficulty 1-5` |
 | deciding | ask for options; answers to AskUserQuestion become draft decisions (`/focus-grill` grills in batches) |
 | side work | "give this to a worker" → `focus-task` skill → `focus task add …` |
+| a feature | `/focus-plan docs/roadmap.md#F2` → tasks with order (`--after`); the next feature is offered when it merges |
+| big PRs | opened as drafts; an opus reviewer clears them or sends blockers back; your GitHub comments become reworks |
+| after merges | `smokeCommand` runs on main; `focus compare --repo a --repo b` for numbers |
 | checkpoints | the pane opens; confirm drafts, review decisions marked ⚠, predict → open the PR → approve / rework / drop |
 | end | `/focus stop` → `.focus/sessions/<date>-<n>.md` (digest + metrics); `focus report` compares focus vs observe |
 
@@ -81,5 +91,5 @@ In a terminal session, `/focus` opens the same view as a pane. Everything is als
 ```bash
 npm test                     # CLI unit tests + mod tests (claude plugin test)
 claude plugin validate .
-scripts/release.sh 0.2.0 "what changed"   # bump, test, commit, push, GitHub release, update local install
+scripts/release.sh 0.3.0 "what changed"   # bump, test, commit, push, GitHub release, update local install
 ```

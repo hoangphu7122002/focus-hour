@@ -10,6 +10,9 @@
 //   focus task add --title "…" --scope a/,b/ [--level L2] [--resources gpu] [--based-on D012] [--spec "…"]
 //   focus tasks | show T [--diff] | predict T "…" | skip T | match T yes|no
 //   focus approve T | rework T "…" | drop T | resume T ["…"] | label T true|false | escape T "…"
+//   focus doctor [--quick] · smoke [--if-moved] · roadmap · feature [start F1 --name --goal]
+//   focus lesson "[scope] rule" · lessons · review T3 · approve T3 [--override] · plugin-note "…"
+//   focus compare --repo owner/a [--repo owner/b] [--since YYYY-MM-DD]   same metrics across repos + this repo's Focus numbers
 //   focus worker [--once]                        run the background workers (own terminal, or --bg)
 //   focus ui [--port 7777] [--no-worker]         dashboard at http://127.0.0.1:7777 + the workers, in one process
 //   focus hook pre|post|fail                     detector hooks (workers only)
@@ -21,7 +24,12 @@ import { hook } from '../lib/detectors.mjs'
 import * as S from '../lib/session.mjs'
 import { ICON, addTask, blockedReason, getTask, listTasks, sendInbox, updateTask } from '../lib/tasks.mjs'
 import { dirtyFiles, loop, prBody, removeWorktree } from '../lib/worker.mjs'
+import * as F from '../lib/features.mjs'
+import * as G from '../lib/guard.mjs'
 import { status, workerAlive } from '../lib/status.mjs'
+import { appendFileSync, mkdirSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { basename, dirname, join } from 'node:path'
 import { die, findRoot, fmtDuration, git, logEvent, now, paths, readStdin, run } from '../lib/util.mjs'
 
 const argv = process.argv.slice(2)
@@ -99,13 +107,18 @@ function approve(id) {
   const t = need(getTask(p, id), `No task ${id}`)
   if (t.status !== 'review') die(`${id} is ${t.status}, not waiting for review`)
   if (c.predict === 'required' && !t.prediction) die(`Predict first: focus predict ${id} "…"`)
+  // The reviewer's verdict gates big PRs. Overriding is allowed and counted (it was 8 of 15 PRs without this gate).
+  const unreviewed = t.review && ['pending', 'running', 'blocked', 'error'].includes(t.review.status)
+  if (unreviewed && !flags.override) die(`${id}: review is ${t.review.status}. Wait for it, or approve anyway with: focus approve ${id} --override (counted)`)
+  if (unreviewed) logEvent(p, 'review.override', { id, status: t.review.status })
+  if (t.prNumber && unreviewed) run('gh', ['pr', 'ready', String(t.prNumber)], { cwd: p.root })
   if (t.prNumber) {
     const r = run('gh', ['pr', 'merge', String(t.prNumber), '--squash', '--delete-branch'], { cwd: p.root })
     if (r.code !== 0) die(`gh pr merge failed: ${(r.stderr || r.stdout).trim()}`)
   }
   removeWorktree(p, t, { deleteBranch: !!t.prNumber })
-  updateTask(p, id, x => Object.assign(x, { status: 'approved', reviewedAt: now() }))
-  logEvent(p, 'task.approved', { id })
+  updateTask(p, id, x => Object.assign(x, { status: 'approved', reviewedAt: now(), mergedBeforeReview: unreviewed || undefined }))
+  logEvent(p, 'task.approved', { id, beforeReview: !!unreviewed })
   return t.prNumber ? `✅ ${id} merged (PR #${t.prNumber}).` : `✅ ${id} approved. Merge the local branch yourself: git merge --squash ${t.branch}`
 }
 
@@ -125,7 +138,68 @@ try {
   switch (cmd) {
     case 'init': {
       const r = init(p, git)
-      out(`${r.created ? 'Created' : 'Kept'} .focus/config.json (test: ${r.config.testCommand}, base: ${r.config.baseBranch}); .focus/state/ is gitignored.`)
+      out(`${r.created ? 'Created' : 'Kept'} .focus/config.json (test: ${r.config.testCommand}, base: ${r.config.baseBranch}); .focus/state/ is gitignored.\n`)
+      out(G.renderDoctor(G.doctor(p, cfg(), { quick: true })))
+      out('\nNext: fill what is ⚠️ in .focus/config.json, then `focus doctor` (runs the test command too).')
+      break
+    }
+    case 'doctor': {
+      const rows = G.doctor(p, cfg(), { quick: !!flags.quick })
+      out(G.renderDoctor(rows))
+      if (rows.some(r => r.level === 'bad')) process.exitCode = 1
+      break
+    }
+    case 'smoke': {
+      const r = G.smokeIfMoved(p, cfg(), { force: !flags['if-moved'] })
+      if (!cfg().smokeCommand) out('No smokeCommand in .focus/config.json.')
+      else if (!r) out('')
+      else out(`${r.pass ? '🟢' : '🔴'} ${cfg().baseBranch} @ ${r.sha.slice(0, 7)} ${r.pass ? 'passes' : 'is BROKEN'} \`${cfg().smokeCommand}\` (${r.seconds}s)${r.pass ? '' : `\n${r.tail}`}`)
+      break
+    }
+    case 'feature': {
+      const c = cfg()
+      if (sub === 'start') {
+        const f = F.startFeature(p, c, need(rest[0], 'Usage: focus feature start F1 [--name "…"] [--goal "…"]'), { name: flags.name, goal: flags.goal })
+        out(`${f.id} · ${f.name} is being built.${f.goal ? ` Goal: ${f.goal}` : ''}`)
+      } else out(F.featureStatus(p, c).list.map(f => `${{ done: '✅', building: '▶', todo: '⬜' }[f.status] ?? '?'} ${f.id} · ${f.name}${f.tasks ? ` (${f.merged}/${f.tasks} merged)` : ''}${f.depends.length ? ` · after ${f.depends.join(', ')}` : ''}`).join('\n') || 'No features. Set "roadmap" in .focus/config.json or run focus feature start F1 --name "…".')
+      break
+    }
+    case 'roadmap': {
+      const c = cfg()
+      const r = F.readRoadmap(p, c)
+      const next = F.nextReady(r)
+      out(r.length ? `${r.map(f => `${f.done ? '✅' : '⬜'} ${f.id} · ${f.name}${f.depends.length ? ` (after ${f.depends.join(', ')})` : ''}`).join('\n')}\n\nNext ready: ${next ? `${next.id} · ${next.name}` : 'none'}` : 'No roadmap: set "roadmap" in .focus/config.json (sections "## F1 · name").')
+      break
+    }
+    case 'lesson': {
+      const raw = [sub, ...rest].join(' ')
+      const m = /^\s*\[([^\]]*)\]\s*(.+)$/.exec(raw)
+      out(G.addLesson(p, cfg(), { scope: m?.[1] ?? '*', rule: m?.[2] ?? raw, source: flags.source ?? 'you' }) ? 'Lesson added.' : 'Already there (or empty).')
+      break
+    }
+    case 'lessons':
+      out(G.readLessons(p, cfg()) || 'No lessons yet: they come from review comments and the reviewer.')
+      break
+    case 'compare': {
+      // focus compare --repo owner/a --repo owner/b [--since 2026-10-01]   (repeat --repo; this repo's own Focus numbers are added)
+      const { githubStats, focusStats, renderCompare } = await import('../lib/compare.mjs')
+      const repos = argv.flatMap((a, i) => (a === '--repo' ? [argv[i + 1]] : [])).filter(Boolean)
+      out(renderCompare(repos.map(r => githubStats(r, { since: flags.since === true ? undefined : flags.since })), focusStats(p)))
+      break
+    }
+    case 'plugin-note': {
+      // Feedback about Focus Hour itself: kept outside the project, never a task or decision of the repo.
+      const file = join(homedir(), '.focus-hour', 'plugin-notes.md')
+      const text = [sub, ...rest].join(' ').trim()
+      if (!text) die('Usage: focus plugin-note "what to improve in Focus Hour"')
+      mkdirSync(dirname(file), { recursive: true })
+      appendFileSync(file, `- ${new Date().toISOString().slice(0, 16).replace('T', ' ')} · ${basename(p.root)} · ${text}\n`)
+      out(`Noted for the plugin (not the project): ${file}`)
+      break
+    }
+    case 'review': {
+      const t = updateTask(p, need(sub, 'Usage: focus review T3'), x => (x.review = { ...(x.review ?? {}), status: 'pending', reasons: [...(x.review?.reasons ?? []), 'asked by you'] }))
+      out(`${t.id}: review queued.`)
       break
     }
     case 'start': {
@@ -235,9 +309,11 @@ try {
       break
     }
     case 'task': {
-      if (sub !== 'add') die('Usage: focus task add --title "…" --scope a/,b/ [--level L2] [--resources gpu] [--based-on D012] [--spec "…"]')
+      if (sub !== 'add') die('Usage: focus task add --title "…" --scope a/,b/ [--level L2] [--feature F1] [--after T1,T2] [--resources gpu] [--based-on D012] [--spec "…"]')
       const c = cfg()
-      const t = addTask(p, c, { title: flags.title, spec: flags.spec === true ? '' : flags.spec, scope: flags.scope, level: flags.level ?? 'L2', resources: flags.resources, basedOn: flags['based-on'], area: flags.area })
+      const feat = flags.feature ? F.loadFeatures(p).features[flags.feature] : null
+      if (flags.feature && !feat) die(`Feature ${flags.feature} is not started: focus feature start ${flags.feature}`)
+      const t = addTask(p, c, { title: flags.title, spec: flags.spec === true ? '' : flags.spec, scope: flags.scope, level: flags.level ?? 'L2', resources: flags.resources, basedOn: flags['based-on'], area: flags.area ?? (feat ? `${feat.id} · ${feat.name}` : undefined), feature: flags.feature, after: flags.after })
       // Built on a dead decision: wait until it is revived or re-decided.
       const deadBase = t.based_on.filter(id => D.readDecision(p, c, id)?.status === 'dead')
       if (deadBase.length) {
@@ -329,7 +405,7 @@ try {
       out(DEFAULTS)
       break
     default:
-      out((await import('node:fs')).readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 17).map(l => l.replace(/^\/\/ ?/, '')).join('\n'))
+      out((await import('node:fs')).readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 20).map(l => l.replace(/^\/\/ ?/, '')).join('\n'))
   }
 } catch (e) {
   die(String(e.message ?? e))

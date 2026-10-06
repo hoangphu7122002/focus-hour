@@ -44,6 +44,9 @@
   .bar .row1 { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
   .bar .head { font-weight: 600; }
   .bar .meta { color: var(--dim); overflow-wrap: anywhere; }
+  .feats { display: flex; flex-wrap: wrap; gap: 6px; }
+  .feat { border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; font-size: 12px; color: var(--dim); }
+  .feat.building { border-color: var(--accent); color: var(--text); } .feat.done { border-color: var(--ok); }
   .bar .flow { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .bar .reason[data-level="1"] { color: var(--info); } .bar .reason[data-level="2"] { color: var(--warn); } .bar .reason[data-level="3"] { color: var(--bad); }
 
@@ -167,6 +170,7 @@ function headline(s) {
   return `${fmt(c.left)} left · checkpoint #${c.upcoming} in ${fmt(c.inMs)}`
 }
 
+const baseName = () => 'main'
 const liveTasks = s => s.tasks.filter(t => !['approved', 'dropped'].includes(t.status))
 const tasksHidden = s => s.session.collapsed && !reveal
 
@@ -181,6 +185,8 @@ function renderBar() {
       ${s.session.active ? '<button data-act="stop">Stop hour</button>' : '<button class="primary" data-act="start">Start hour</button>'}
     </div>
     <div class="meta flow" title="${esc(s.flow.text)}">Flow: ${esc(s.flow.text)}${s.flow.derived ? ' <i>(derived)</i>' : ''}</div>
+    ${s.features?.list?.length ? `<div class="feats">${s.features.list.map(f => `<span class="feat ${f.status}" title="${esc(`${f.id} · ${f.name}${f.goal ? `\nGoal: ${f.goal}` : ''}${f.ac?.length ? `\nAC: ${f.ac.join(', ')}` : ''}`)}">${{ done: '✅', building: '▶', todo: '⬜' }[f.status] ?? ''} ${esc(f.id)} ${esc(fit(f.name, 150))}${f.tasks ? ` · ${f.merged}/${f.tasks}` : ''}</span>`).join('')}</div>` : ''}
+    ${s.config.smokeCommand ? `<div class="meta">${!s.smoke ? `${esc(baseName())} not smoke-checked yet` : s.smoke.pass ? `<span class="good">● ${esc(baseName())} ok</span> @ ${esc(s.smoke.sha.slice(0, 7))} · <code>${esc(s.config.smokeCommand)}</code>` : `<span class="err">● ${esc(baseName())} BROKEN</span> @ ${esc(s.smoke.sha.slice(0, 7)) } · <code>${esc(s.config.smokeCommand)}</code> fails`}${s.lessons ? ` · ${s.lessons} review lesson(s)` : ''}</div>` : s.lessons ? `<div class="meta">${s.lessons} review lesson(s)</div>` : ''}
     ${lvl ? `<div class="reason" data-level="${lvl}">${esc(s.attention.reason)}</div>` : ''}
     ${hidden ? `<div class="meta">${hidden} task(s) hidden until checkpoint #${s.session.upcoming} in ${fmt(s.session.inMs)} · <button class="link" data-act="reveal">show anyway (counts as a pull)</button></div>` : ''}
     ${!s.workerAlive && liveTasks(s).some(t => t.status === 'queued') ? '<div class="note">No worker running — start <code>focus ui</code> or <code>focus worker</code>.</div>' : ''}`
@@ -209,7 +215,7 @@ function renderGraph() {
     const d = n.data
     const color = isTask ? TCOLOR[d.status] ?? 'var(--idle)' : DCOLOR[d.status] ?? 'var(--idle)'
     const sub = isTask
-      ? `${TLABEL[d.status] ?? d.status}${d.prNumber ? ` · PR #${d.prNumber}` : ''}${d.stale?.length ? ' · stale' : ''}`
+      ? `${TLABEL[d.status] ?? d.status}${d.prNumber ? ` · PR #${d.prNumber}` : ''}${d.review && d.status === 'review' ? ` · review ${d.review.status}` : ''}${d.stale?.length ? ' · stale' : ''}`
       : `${DLABEL[d.status] ?? d.status}${d.dependents?.length ? ` · affects ${d.dependents.length}` : ''}`
     const lines = isTask ? [fit(d.title, textW, 6.8)] : wrap(d.title, textW, 2, 6.8)
     const x = n.x + 26
@@ -293,6 +299,12 @@ function renderDetail() {
         <div>${ok(!c.outOfScope.length)} scope${c.outOfScope.length ? ` — outside: ${esc(c.outOfScope.join(', '))}` : ''}</div>
         <div>${ok(c.testsDelta >= 0)} test cases ${c.testsDelta >= 0 ? '+' : ''}${c.testsDelta} · ${ok(!c.mocksAdded)} mocks +${c.mocksAdded}</div>
         <div>${ok(c.testsPass)} <code>${esc(S.config.testCommand)}</code> ${c.testsPass ? 'passed' : 'failed'} · +${c.added} / −${c.removed} in ${c.files.length} file(s)</div>` : ''}
+      ${t.review ? `<div class="section">Reviewer</div>
+        <div>${t.review.status === 'ok' ? '<span class="good">✓ no blockers</span>' : t.review.status === 'blocked' ? '<span class="err">blocked — sent back to the worker</span>' : t.review.status === 'error' ? '<span class="err">review failed</span>' : '<span class="note">running… the PR stays a draft until it finishes</span>'} · why: ${esc((t.review.reasons || []).join('; '))}${t.fixRounds ? ` · fix rounds ${t.fixRounds}` : ''}</div>
+        ${t.review.summary ? `<div>${esc(t.review.summary)}</div>` : ''}
+        ${(t.review.blockers || []).map(b => `<div class="err">⛔ ${esc(typeof b === 'string' ? b : `${b.file ?? ''}${b.line ? `:${b.line}` : ''} ${b.issue ?? ''}${b.fix ? ` → ${b.fix}` : ''}`)}</div>`).join('')}
+        ${(t.review.nits || []).slice(0, 5).map(n => `<div class="tag">nit: ${esc(typeof n === 'string' ? n : n.issue ?? '')}</div>`).join('')}` : ''}
+      ${t.screenshots?.length ? `<div class="section">Screenshots</div><div class="tag">${t.screenshots.length} in the PR body</div>` : ''}
       ${t.packet ? `<div class="section">Agent claims (not verified)</div><div>${esc(t.packet.summary || '')}</div>${(t.packet.risks || []).map(x => `<div class="note">Risk: ${esc(x)}</div>`).join('')}` : ''}
       <div class="section">Based on</div>${chips(up, 'up')}
       ${t.status === 'stopped' ? `<div class="actions"><input type="text" id="msg" placeholder="Resume with an instruction"><button class="primary" data-act="resume">Resume</button></div>
@@ -304,7 +316,11 @@ function renderDetail() {
         <div class="actions">${t.prUrl ? `<a href="${esc(t.prUrl)}" target="_blank" rel="noopener">Open PR #${t.prNumber} ↗</a>` : `<span>Local branch <code>focus/${esc(t.id)}</code>${t.publishError ? ` (${esc(t.publishError)})` : ''}</span>`}</div>
         <div class="actions">
           ${t.prediction && t.predictionMatch === null ? '<button data-act="match-yes">Prediction matched</button><button data-act="match-no">Prediction missed</button>' : ''}
-          <button class="primary" data-act="approve">${t.prNumber ? 'Approve & merge' : 'Approve'}</button><button data-act="drop">Drop</button>
+          ${t.review && ['pending', 'running', 'blocked', 'error'].includes(t.review.status)
+            ? `<button data-act="approve-override" title="The reviewer has not cleared this PR; merging now is counted">Approve anyway (counted)</button>`
+            : `<button class="primary" data-act="approve">${t.prNumber ? 'Approve & merge' : 'Approve'}</button>`}
+          ${!t.review ? '<button data-act="review">Ask the reviewer</button>' : ''}
+          <button data-act="drop">Drop</button>
         </div>
         <div class="actions"><input type="text" id="rework" placeholder="Rework: what to change"><button data-act="rework">Send rework</button></div>` : ''}`
   }
@@ -374,7 +390,7 @@ document.addEventListener('click', e => {
     area: () => v('#area') && act(['decision', 'edit', id, '--area', v('#area')]),
     predict: () => v('#msg') && act(['predict', id, v('#msg')]), skip: () => act(['skip', id]),
     'match-yes': () => act(['match', id, 'yes']), 'match-no': () => act(['match', id, 'no']),
-    approve: () => act(['approve', id]), drop: () => act(['drop', id]),
+    approve: () => act(['approve', id]), 'approve-override': () => act(['approve', id, '--override']), review: () => act(['review', id]), drop: () => act(['drop', id]),
     rework: () => v('#rework') && act(['rework', id, v('#rework')]),
     resume: () => act(['resume', id, v('#msg')]),
     'label-true': () => act(['label', id, 'true']), 'label-false': () => act(['label', id, 'false']),

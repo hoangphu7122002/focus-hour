@@ -4,7 +4,7 @@ import type { FocusStatus } from '../types'
 
 const STATUS: FocusStatus = {
   root: '/repo',
-  config: { mainEffort: { ask: 'low', code: 'medium' }, predict: 'optional', paneOutsideCheckpoint: 'collapsed', reviewCap: 2, mode: 'focus', testCommand: 'make test' },
+  config: { language: { chat: 'vi', code: 'en' }, roadmap: null, smokeCommand: null, mainEffort: { ask: 'low', code: 'medium' }, predict: 'optional', paneOutsideCheckpoint: 'collapsed', reviewCap: 2, mode: 'focus', testCommand: 'make test' },
   session: { active: true, id: '2026-10-03-1', mode: 'focus', left: 1_800_000, current: 2, upcoming: 3, inMs: 60_000, inWindow: true, collapsed: false },
   flow: { text: 'baseline ✓ → sweep ▶', derived: false },
   decisions: [
@@ -22,6 +22,9 @@ const STATUS: FocusStatus = {
   resume: { last: null, needsReview: [], drafts: [{ id: 'D002', title: 'Seqs: 64' }], waiting: [], stopped: [] },
   attention: { level: 1, reason: '1 PR waiting', autoOpen: false },
   requests: [],
+  features: { current: null, roadmap: null, list: [] },
+  smoke: null,
+  lessons: 0,
   workerAlive: true,
 }
 

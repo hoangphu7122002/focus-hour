@@ -134,6 +134,10 @@ export const register: Register = on => {
   on('prompt.compose', async ($, e, next) => {
     const res = await next(e)
     if (!m.enabled || m.isWorker) return res
+    const st = await read($, status)
+    const NAMES: Record<string, string> = { vi: 'Vietnamese', en: 'English', ja: 'Japanese', fr: 'French', de: 'German', es: 'Spanish', zh: 'Chinese', ko: 'Korean' }
+    const l = st?.config.language
+    const lang = [l?.chat ? `talk to the user in ${NAMES[l.chat] ?? l.chat}` : '', l?.code ? `write code, comments, commits, PRs and docs in ${NAMES[l.code] ?? l.code}` : ''].filter(Boolean).join('; ')
     const text = [
       '# Focus Hour',
       `This repo uses Focus Hour. The CLI is \`${m.cliPath}\` (run it with node, or as \`focus\` when it is on PATH); its state is in .focus/ and decisions in docs/decisions/.`,
@@ -146,6 +150,9 @@ export const register: Register = on => {
       '- Flow: when a step of the work completes or the plan changes, run `focus flow "<done ✓ → current ▶ → next>"` (one line).',
       '- Side work (tests, docs, scripts, verification) that the user wants in the background: use the focus-task skill; never do it yourself in parallel.',
       '- Do not report on background tasks unless asked: the user reviews them at checkpoints in the Focus pane.',
+      '- A whole feature (from the roadmap or the user): use the focus-plan skill to split it into tasks; never build a feature yourself in parallel with the workers.',
+      '- Feedback about Focus Hour itself (the plugin, its workers, its UI) is not project work: record it with `focus plugin-note "…"`; never turn it into a task, decision or backlog item of this repo.',
+      ...(lang ? [`- Language: ${lang}`] : []),
     ].join('\n')
     return { ...res, sections: [...res.sections, { id: 'focus-hour:workflow', text, scope: 'session' as const }] }
   })

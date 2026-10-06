@@ -113,22 +113,38 @@ stateDiagram-v2
 
 ## Where the data lives
 
+Plugin and repo never mix: the plugin holds code and generic rules, each repo holds its own data.
+
 ```mermaid
 flowchart LR
+    subgraph plugin["The plugin (same for every repo)"]
+        p1["CLI · mod · dashboard"]
+        p2["prompts/worker.md, reviewer.md<br/>generic rules"]
+        p3["skills · DEFAULTS · stack presets"]
+    end
     subgraph committed["Committed with the repo"]
         a["docs/decisions/D###.md<br/>why · depends_on · area · status"]
         b["docs/ADR/NNNN-*.md<br/>promoted decisions"]
-        c[".focus/config.json<br/>hour, checkpoints, WIP, levels"]
+        c[".focus/config.json<br/>overrides: hour, WIP, language, roadmap, slots"]
+        l[".focus/lessons.md<br/>rules from this repo's reviews"]
         d[".focus/sessions/*.md<br/>digest + trial metrics"]
     end
     subgraph local["Local only"]
-        e[".focus/state/<br/>session · tasks · events · inbox"]
-        f["~/.focus-hour/worktrees/<br/>one checkout per task"]
+        e[".focus/state/<br/>session · tasks · features · slots · smoke · events"]
+        f["~/.focus-hour/worktrees/<br/>one checkout per task + _smoke"]
+        n["~/.focus-hour/plugin-notes.md<br/>feedback about the plugin"]
     end
     subgraph remote["GitHub"]
-        g["branch focus/T# → PR"]
+        g["branch focus/T# → draft/ready PR<br/>review + human comments"]
     end
+    p1 --> e
+    c --> p1
+    l --> p2
     f --> g
+    g -- comments --> e
 ```
+
+A rule for one repo is a lesson or config key of that repo; an idea for the plugin is a plugin note. Neither edits
+the other's files.
 
 See [SPEC.md](../SPEC.md) for the full design and the reasoning behind each rule.

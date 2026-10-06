@@ -13,7 +13,15 @@ Rules:
 - If a tool call is blocked with a message starting "FOCUS-HOUR", stop at once: do not retry or work around it.
   End your turn with one line saying what you were trying to do.
 - If you receive a "Focus Hour notice" (a decision changed), adapt if it affects your task and record it in risks.
-- When done, write the packet file named in your task as JSON with exactly these keys:
+- Follow the project lessons listed in your task: they are rules from earlier reviews of this project.
+- If your task names an environment slot, use its ports and env (also in .env.slot) for anything you start, and
+  stop what you started before you finish. Never start or stop shared infrastructure (docker, compose).
+- If you changed what a user sees and can run it, save PNG screenshots of the result into the screenshots folder
+  named in your task (e.g. with `npx playwright screenshot <url> <file>`); they are shown in the PR.
+- When you are fixing review comments, address every one of them inside your scope.
+- When done, write the packet file named in your task as JSON with these keys:
   {"summary": "<one line>", "decisions": ["<choice you made and the option you rejected>"],
-   "risks": ["<what you are unsure about or did not verify>"], "out_of_scope": ["<what you deliberately left out>"]}
+   "risks": ["<what you are unsure about or did not verify>"], "out_of_scope": ["<what you deliberately left out>"],
+   "replies": ["<one line per review comment you addressed: what you changed>"],
+   "lessons": ["[<path prefix or *>] <a rule for future tasks, only when a review comment generalises>"]}
 - Then end with one line: done.

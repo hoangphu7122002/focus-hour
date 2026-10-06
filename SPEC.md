@@ -42,16 +42,43 @@ One Claude Code plugin, installed once per user; each repo holds only config and
 focus-hour/                          (this repo = the plugin)
 ├─ .claude-plugin/plugin.json
 ├─ hooks/hooks.json, register.tsx    mod: pane, decision capture, system-prompt section, checkpoint toasts
-├─ skills/focus-grill, focus-task    batch questions tagged by decision · dispatch a task
-├─ bin/focus, lib/*.mjs              CLI (Node ≥ 18, no dependencies): state, worker, detectors, digest
-└─ prompts/worker.md                 rules every worker runs under
+├─ skills/focus-grill, focus-task,   batch questions tagged by decision · dispatch a task ·
+│  focus-plan                        split a roadmap feature into tasks
+├─ bin/focus, lib/*.mjs              CLI (Node ≥ 18, no dependencies): state, worker, detectors, reviewer, digest
+└─ prompts/worker.md, reviewer.md    rules every worker / reviewer runs under
 
 <any repo>/
-├─ .focus/config.json                committed: numbers below, test command, resources
+├─ .focus/config.json                committed: numbers below, test command, resources, language, roadmap, slots
+├─ .focus/lessons.md                 committed: rules learned from this repo's reviews
 ├─ .focus/sessions/<date>-<n>.md     committed: end-of-hour digests (trial data)
-├─ .focus/state/                     gitignored: session, tasks, events.jsonl, flow.md, inbox, worktrees
-└─ docs/decisions/D###.md            committed: the decision log (dir configurable)
+├─ .focus/state/                     gitignored: session, tasks, features, slots, smoke, events.jsonl, inbox
+├─ docs/decisions/D###.md            committed: the decision log (dir configurable)
+└─ <roadmap>.md                      the repo's own plan; Focus Hour only ticks a feature's Status when it is merged
+
+~/.focus-hour/                       per machine, belongs to neither
+├─ worktrees/<repo>-<hash>/T#        one checkout per task (+ _smoke for the post-merge check)
+└─ plugin-notes.md                   feedback about Focus Hour itself (`focus plugin-note`)
 ```
+
+### Plugin vs repo: who owns what
+
+The plugin is the same for every repo; a repo holds only its own data. Nothing about one repo goes into the plugin,
+and nothing about the plugin goes into a repo.
+
+| Owned by the **plugin** (this repo) | Owned by **each repo** |
+|---|---|
+| code: CLI, mod, detectors, worker, reviewer, dashboard | `.focus/config.json`: overrides of the defaults |
+| `prompts/*.md`: the generic rules of workers and reviewers | `.focus/lessons.md`: rules learned from *its* reviews |
+| skills: how to grill, dispatch, plan | `docs/decisions/`, `docs/ADR/`: *its* decisions |
+| `DEFAULTS` and stack presets (`focus defaults`) | the roadmap/spec: *its* features and acceptance criteria |
+| | `.focus/sessions/`: *its* trial data · tasks, branches, PRs |
+
+Rules that follow:
+- A repo-specific rule is a **lesson** or a **config key** of that repo, never an edit to `prompts/` or `DEFAULTS`.
+- A generic improvement found while working on a repo is a **plugin note** (`focus plugin-note "…"`, written to
+  `~/.focus-hour/plugin-notes.md`), never a task, decision or backlog item of that repo. The main session is told so.
+- The plugin never writes outside `.focus/`, the decisions dir and the roadmap's Status lines; workers write only in
+  their task's scope, inside their worktree.
 
 `focus init` writes `.focus/config.json` by reading the repo (Makefile `test:`, package.json, pyproject, go.mod,
 Cargo.toml) and adds the gitignore lines. The mod is the UI; **all logic lives in the CLI**, so everything keeps
@@ -81,7 +108,17 @@ working (as text) if mods are unavailable.
   "testCommand": "make test",
   "baseBranch": "main",
   "decisionsDir": "docs/decisions",
-  "worker": { "allowedTools": [], "maxBudgetUsd": 3 }
+  "worker": { "allowedTools": [], "maxBudgetUsd": 3 }, // `focus init` fills allowedTools from the stack
+  "language": { "chat": null, "code": "en" },  // e.g. chat "vi": the main session talks Vietnamese, code stays English
+  "roadmap": null,                      // e.g. "docs/roadmap.md": sections "## F<n> · name" (Status, Depends on, AC, Goal)
+  "autoAdvance": true,                  // a finished feature asks the main session to plan the next one
+  "review": { "model": "opus", "effort": "medium", "bigLines": 300, "always": false, "maxFixRounds": 3 },
+  "watch": { "intervalSeconds": 60, "trusted": ["OWNER", "MEMBER", "COLLABORATOR"] },
+  "smokeCommand": null,                 // e.g. "make demo": run on the base branch after every merge
+  "lessonsFile": ".focus/lessons.md",
+  "slots": null,                        // e.g. { "count": 3, "ports": { "API_PORT": 8200 }, "env": { "DB": "app_s{slot}" }, "setup": "…", "teardown": "…" }
+  "infraGuard": true,                   // workers may not start/stop docker, compose, `make up/down/dev`
+  "screenshots": { "enabled": true, "dir": ".focus-shots" }
 }
 ```
 
@@ -203,6 +240,34 @@ Pane row → packet + checks → optional one-line prediction (or Skip, counted)
 `match ✓/✗`, `Approve & merge`, `Rework…`, `Drop`. Merge = `gh pr merge --squash --delete-branch`, only from the human's
 press (or `focus approve`). Without a GitHub remote the task stays a local branch and `focus show T5 --diff` is the review.
 
+### 7b. Agent review and GitHub feedback
+
+- A PR is **big** when it is over `review.bigLines`, touches contract/security paths, changes UI, fails tests, adds
+  mocks or builds on a changed decision. A big PR opens as a **draft** and a read-only reviewer (`review.model`) reads
+  it against the task spec, the feature's acceptance criteria and the repo's lessons, answering a JSON verdict.
+  `ok` → the PR is marked ready; `blocked` → the blockers go back to the worker as a rework (at most
+  `review.maxFixRounds`, then a stop for the human).
+- **Approve gate**: approving while the review is pending, running or blocked needs `--override`
+  (the map's "Approve anyway"); it is counted (`review.override`, `mergedBeforeReview`).
+- **Watcher**: every `watch.intervalSeconds` the worker reads each open PR. Merged on GitHub → approved; closed →
+  dropped; a new comment from a trusted human → a rework with the comments. Focus Hour's own comments carry a
+  hidden marker, so the same account can be both.
+- A review comment that generalises becomes a **lesson** (from the worker packet, the reviewer, or `focus lesson`),
+  shown to every later worker and reviewer whose scope it matches.
+
+### 7c. Features, smoke and slots
+
+- **Features**: `focus-plan` splits one roadmap feature into tasks (`--feature F2`, `--after T7`). When all of a
+  feature's tasks are merged, its Status is ticked and, with `autoAdvance`, the main session is asked to plan the
+  next ready feature.
+- **Smoke**: after the base branch moves, `smokeCommand` runs in a dedicated `_smoke` worktree; a failure is
+  attention level 3 ("main is broken after the last merge").
+- **Slots**: with `slots`, each running task leases a slot (ports `base + n`, `{slot}` in env values, `.env.slot`);
+  setup/teardown run around the task, and tasks wait when slots run out.
+- `focus doctor` lists what a new repo is missing (remote, gh auth, test command, roadmap, presets);
+  `focus compare --repo a --repo b` puts PR numbers of any GitHub repos side by side, plus this repo's Focus Hour
+  numbers (overrides, review blockers, smoke failures, lessons).
+
 ## 8. The hour and the pane
 
 ```text
@@ -266,7 +331,7 @@ press (or `focus approve`). Without a GitHub remote the task stays a local branc
 - Cross-check with transcripts (`~/.claude/projects/<repo>/*.jsonl`): turns, tokens, time.
 - Stop or adjust if escapes > 2× observe sessions, detector precision < 30–50%, or ⑥ doesn't drop.
 
-## 10. Out of scope for v0.1 (phase 2)
+## 10. Out of scope (later)
 
-Ready queue of drafted tasks prepared outside the hour · risk-sorted review queue · conflict detection between
-decisions · workers on a remote GPU box · a web view.
+Risk-sorted review queue · conflict detection between decisions · workers on a remote GPU box · a live end-to-end
+test of the GitHub review loop on a sandbox repo (the loop is unit-tested; the demo repos had no remote).
