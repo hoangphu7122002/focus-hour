@@ -74,7 +74,9 @@ function showTask(id, full) {
   }
   const lines = [`${ICON[t.status]} ${t.id} · ${t.title} · ${t.status} · ${t.level} · $${(t.costUsd ?? 0).toFixed(2)}`]
   if (t.status === 'stopped') {
-    lines.push(`🔥 ${t.andon?.trigger}: ${t.andon?.reason}`, `   focus resume ${id} "what to do instead"  ·  focus drop ${id}  ·  focus label ${id} true|false`)
+    lines.push(`🔥 ${t.andon?.trigger}: ${t.andon?.reason}`)
+    if (t.workerMessage) lines.push('', "Worker's last message:", ...t.workerMessage.split('\n').map(l => `  ${l}`), '')
+    lines.push(`   focus resume ${id} "what to do instead"  ·  focus drop ${id}  ·  focus label ${id} true|false`)
     return lines.join('\n')
   }
   if (t.checks || t.packet) lines.push('', prBody(t, c))

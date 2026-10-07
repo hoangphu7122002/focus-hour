@@ -219,6 +219,7 @@ checkpoint early.
 | `loop` | the same Bash command fails `repeatLimit` times | technical → escalate |
 | `budget` | tool calls > `callBudget` | technical → escalate |
 | `tests-failing` | the test command fails after the worker finished | technical → escalate |
+| `no-changes` | the run ended with no diff vs `origin/<baseBranch>` (nothing to review); `focus show` gives the worker's last message | safety → stop |
 
 Escalation: technical triggers re-run the task one level up (max `escalate.max` times), resuming in the same worktree.
 Safety triggers stop the task until the human decides (`resume` / `drop`) and label the stop (`label true|false`).

@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict'
 import { chmodSync, existsSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import { loadConfig } from '../lib/config.mjs'
 import { addTask, getTask } from '../lib/tasks.mjs'
 import { git, paths, writeJson } from '../lib/util.mjs'
 import { runTask } from '../lib/worker.mjs'
 
+const CLI = join(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'focus.mjs')
 const tmp = name => mkdtempSync(join(tmpdir(), `focus-base-${name}-`))
 const ident = dir => { git(dir, 'config', 'user.email', 't@t'); git(dir, 'config', 'user.name', 't') }
 
@@ -60,4 +63,15 @@ test('a reused worktree without commits of its own is moved onto the fresh base'
   assert.equal(git(wt, 'rev-parse', 'HEAD~1').stdout.trim(), originHead())
   assert.deepEqual(t.checks.files, ['work.txt'])
   assert.equal(getTask(p, id).status, 'ready')
+})
+
+test('a run that changed nothing stops (no-changes) instead of going to review, and show gives the reason', async () => {
+  const { p, cfg, id } = repos({ writes: false })
+  const t = await runTask(p, cfg, id)
+  assert.equal(t.status, 'stopped')
+  assert.equal(t.andon.trigger, 'no-changes')
+  assert.match(t.andon.reason, /prerequisite module is missing/)
+  const show = spawnSync(process.execPath, [CLI, 'show', id], { cwd: p.root, env: { ...process.env, FOCUS_ROOT: p.root }, encoding: 'utf8' })
+  assert.match(show.stdout, /no-changes/)
+  assert.match(show.stdout, /Worker's last message:\n  The prerequisite module is missing/)
 })
