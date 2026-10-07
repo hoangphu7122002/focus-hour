@@ -246,7 +246,8 @@ press (or `focus approve`). Without a GitHub remote the task stays a local branc
   mocks or builds on a changed decision. A big PR opens as a **draft** and a read-only reviewer (`review.model`) reads
   it against the task spec, the feature's acceptance criteria and the repo's lessons, answering a JSON verdict.
   `ok` → the PR is marked ready; `blocked` → the blockers go back to the worker as a rework (at most
-  `review.maxFixRounds`, then a stop for the human).
+  `review.maxFixRounds`, then a stop for the human; a fix round that changed nothing, or got the same blockers
+  again, stops for the human at once: `fix-stuck`, e.g. the worker lacks a permission).
 - **Approve gate**: approving while the review is pending, running or blocked needs `--override`
   (the map's "Approve anyway"); it is counted (`review.override`, `mergedBeforeReview`).
 - **Watcher**: every `watch.intervalSeconds` the worker reads each open PR. Merged on GitHub → approved; closed →
