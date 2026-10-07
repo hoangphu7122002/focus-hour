@@ -30,23 +30,9 @@ import { status, workerAlive } from '../lib/status.mjs'
 import { appendFileSync, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
-import { die, findRoot, fmtDuration, git, logEvent, now, paths, readStdin, run } from '../lib/util.mjs'
+import { die, findRoot, fmtDuration, git, logEvent, now, parseArgs, paths, readStdin, run } from '../lib/util.mjs'
 
-const argv = process.argv.slice(2)
-const flags = {}
-const pos = []
-for (let i = 0; i < argv.length; i++) {
-  const a = argv[i]
-  if (a.startsWith('--')) {
-    const k = a.slice(2)
-    const v = argv[i + 1]
-    if (v === undefined || v.startsWith('--')) flags[k] = true
-    else {
-      flags[k] = v
-      i++
-    }
-  } else pos.push(a)
-}
+const { flags, pos } = parseArgs(process.argv.slice(2))
 
 const p = paths(findRoot())
 const cfg = () => loadConfig(p)
@@ -183,7 +169,7 @@ try {
     case 'compare': {
       // focus compare --repo owner/a --repo owner/b [--since 2026-10-01]   (repeat --repo; this repo's own Focus numbers are added)
       const { githubStats, focusStats, renderCompare } = await import('../lib/compare.mjs')
-      const repos = argv.flatMap((a, i) => (a === '--repo' ? [argv[i + 1]] : [])).filter(Boolean)
+      const repos = typeof flags.repo === 'string' ? flags.repo.split(',').map(s => s.trim()).filter(Boolean) : []
       out(renderCompare(repos.map(r => githubStats(r, { since: flags.since === true ? undefined : flags.since })), focusStats(p)))
       break
     }

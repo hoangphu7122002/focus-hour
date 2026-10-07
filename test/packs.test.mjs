@@ -177,3 +177,14 @@ test('doctor names what a new project is missing', () => {
   const rows = G.doctor(p, cfg, { quick: true })
   assert.equal(rows[0].level, 'bad') // not a git repo yet
 })
+
+test('task add: repeated --after merges like the comma form, and the wait lists every pending task', async () => {
+  const { parseArgs } = await import('../lib/util.mjs')
+  assert.equal(parseArgs(['task', 'add', '--after', 'T1', '--after', 'T2', '--title', 'x']).flags.after, 'T1,T2')
+  assert.equal(parseArgs(['--after', 'T1,T2', '--after', 'T3']).flags.after, 'T1,T2,T3')
+  assert.equal(parseArgs(['--title', 'a', '--title', 'b']).flags.title, 'b')
+  const cfg = merge(DEFAULTS, {})
+  const T = (id, status, extra = {}) => ({ id, status, scope: [`${id}/`], resources: [], based_on: [], ...extra })
+  const tasks = [T('T3', 'review'), T('T6', 'queued'), T('T7', 'approved'), T('T8', 'running'), T('T9', 'queued', { blockedBy: ['T3', 'T6', 'T7', 'T8'] })]
+  assert.equal(blockedReason(tasks[4], { tasks, cfg }), 'after T3, T6, T8')
+})
