@@ -23,7 +23,7 @@ import * as D from '../lib/decisions.mjs'
 import { hook } from '../lib/detectors.mjs'
 import * as S from '../lib/session.mjs'
 import { ICON, addTask, blockedReason, getTask, listTasks, sendInbox, updateTask } from '../lib/tasks.mjs'
-import { baseRef, dirtyFiles, loop, prBody, removeWorktree } from '../lib/worker.mjs'
+import { baseBehind, baseHint, baseRef, dirtyFiles, loop, prBody, removeWorktree, syncLocalBase } from '../lib/worker.mjs'
 import * as F from '../lib/features.mjs'
 import * as G from '../lib/guard.mjs'
 import { status, workerAlive } from '../lib/status.mjs'
@@ -59,6 +59,11 @@ function headline(c) {
   const n = st => tasks.filter(t => t.status === st).length
   const ds = D.listDecisions(p, c)
   const counts = `🔵${n('review')} 🔥${n('stopped')} 🟢${n('running')} ⚪${n('queued')} · ✎${ds.filter(d => d.status === 'draft').length} ⚠${ds.filter(d => d.status === 'dead').length}`
+  const hint = baseHint(baseBehind(p, c))
+  return headLine(cp, counts) + (hint ? ` · ⚠ ${hint}` : '')
+}
+
+function headLine(cp, counts) {
   if (!cp.active) return `Focus Hour (not started) · ${counts}`
   if (cp.overtime) return `⏹ time's up · ${counts} · focus stop`
   const head = cp.current ? `👀 CHECKPOINT ${cp.current}` : `⏱ ${fmtDuration(cp.left)} left · 👀 checkpoint ${cp.upcoming} in ${fmtDuration(cp.inMs)}`
@@ -105,6 +110,7 @@ function approve(id) {
     if (r.code !== 0) die(`gh pr merge failed: ${(r.stderr || r.stdout).trim()}`)
   }
   removeWorktree(p, t, { deleteBranch: !!t.prNumber })
+  if (t.prNumber) syncLocalBase(p, c)
   updateTask(p, id, x => Object.assign(x, { status: 'approved', reviewedAt: now(), mergedBeforeReview: unreviewed || undefined }))
   logEvent(p, 'task.approved', { id, beforeReview: !!unreviewed })
   return t.prNumber ? `✅ ${id} merged (PR #${t.prNumber}).` : `✅ ${id} approved. Merge the local branch yourself: git merge --squash ${t.branch}`

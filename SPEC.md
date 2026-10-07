@@ -107,6 +107,7 @@ working (as text) if mods are unavailable.
   "mode": "focus",                      // focus | observe (baseline arm of the trial)
   "testCommand": "make test",
   "baseBranch": "main",
+  "autoSyncBase": true,                // fast-forward the local base to origin/<base> after merges (§7c)
   "decisionsDir": "docs/decisions",
   "worker": { "allowedTools": [], "maxBudgetUsd": 3 }, // `focus init` fills allowedTools from the stack
   "language": { "chat": null, "code": "en" },  // e.g. chat "vi": the main session talks Vietnamese, code stays English
@@ -267,6 +268,12 @@ press (or `focus approve`). Without a GitHub remote the task stays a local branc
   next ready feature.
 - **Smoke**: after the base branch moves, `smokeCommand` runs in a dedicated `_smoke` worktree; a failure is
   attention level 3 ("main is broken after the last merge").
+- **Base sync** (`autoSyncBase`, default on): PRs are merged on GitHub, so the operator's local base branch falls
+  behind. Right after the watcher sees a merge (or `focus approve` merges), and at every watch tick, the worker
+  fetches and fast-forwards the local base, only when safe: `git merge --ff-only` if it is checked out (git refuses
+  when the update would touch a file with local changes; unrelated changes are fine), `git fetch origin <base>:<base>`
+  otherwise. Never a reset, a stash or another branch. A refusal logs one `base.sync-failed` event per origin head and
+  shows a hint in the status line, the pane and the dashboard: "local main is N commit(s) behind origin — run git pull".
 - **Slots**: with `slots`, each running task leases a slot (ports `base + n`, `{slot}` in env values, `.env.slot`);
   setup/teardown run around the task, and tasks wait when slots run out.
 - `focus doctor` lists what a new repo is missing (remote, gh auth, test command, roadmap, presets);

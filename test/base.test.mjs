@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { chmodSync, existsSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
@@ -7,8 +7,9 @@ import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import { loadConfig } from '../lib/config.mjs'
 import { addTask, getTask } from '../lib/tasks.mjs'
-import { git, paths, writeJson } from '../lib/util.mjs'
-import { runTask } from '../lib/worker.mjs'
+import { git, paths, readEvents, writeJson } from '../lib/util.mjs'
+import { baseBehind, baseHint, loop, runTask, syncLocalBase } from '../lib/worker.mjs'
+import { status } from '../lib/status.mjs'
 
 const CLI = join(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'focus.mjs')
 const tmp = name => mkdtempSync(join(tmpdir(), `focus-base-${name}-`))
@@ -16,7 +17,7 @@ const ident = dir => { git(dir, 'config', 'user.email', 't@t'); git(dir, 'config
 
 // origin (bare) ← the operator's clone (`root`, main checked out) and a second clone standing in for GitHub merges.
 // After setup, origin/main has one more commit than the operator's local main.
-function repos({ writes = true } = {}) {
+function repos({ writes = true, mergedFile = 'merged.txt' } = {}) {
   const dir = tmp('repo')
   const origin = join(dir, 'origin.git')
   git(dir, 'init', '-q', '--bare', '-b', 'main', origin)
@@ -31,7 +32,7 @@ function repos({ writes = true } = {}) {
   const gh = join(dir, 'gh')
   git(dir, 'clone', '-q', origin, gh)
   ident(gh)
-  writeFileSync(join(gh, 'merged.txt'), 'merged on GitHub\n')
+  writeFileSync(join(gh, mergedFile), 'merged on GitHub\n')
   git(gh, 'add', '-A')
   git(gh, 'commit', '-qm', 'merged PR')
   git(gh, 'push', '-q', 'origin', 'main')
@@ -74,4 +75,54 @@ test('a run that changed nothing stops (no-changes) instead of going to review, 
   const show = spawnSync(process.execPath, [CLI, 'show', id], { cwd: p.root, env: { ...process.env, FOCUS_ROOT: p.root }, encoding: 'utf8' })
   assert.match(show.stdout, /no-changes/)
   assert.match(show.stdout, /Worker's last message:\n  The prerequisite module is missing/)
+})
+
+// ---------- auto-sync of the operator's local base branch ----------
+
+const localMain = root => git(root, 'rev-parse', 'refs/heads/main').stdout.trim()
+const withSync = (p, extra = {}) => { writeJson(p.config, { ...JSON.parse(readFileSync(p.config, 'utf8')), autoSyncBase: true, ...extra }); return loadConfig(p) }
+
+test('the worker loop fast-forwards the checked-out local base; unrelated local changes stay', async () => {
+  const { p, root, originHead } = repos()
+  withSync(p)
+  writeFileSync(join(root, 'a.txt'), 'operator is editing\n')
+  await loop(p, () => loadConfig(p), { once: true, log: () => {} })
+  assert.equal(localMain(root), originHead())
+  assert.equal(readFileSync(join(root, 'a.txt'), 'utf8'), 'operator is editing\n')
+  assert.ok(existsSync(join(root, 'merged.txt')))
+  assert.equal(baseHint(baseBehind(p, loadConfig(p))), null)
+})
+
+test('a local base that is not checked out is fast-forwarded without touching the current branch', () => {
+  const { p, root, originHead } = repos()
+  const cfg = withSync(p)
+  git(root, 'checkout', '-q', '-b', 'mine')
+  const mine = git(root, 'rev-parse', 'HEAD').stdout.trim()
+  assert.equal(syncLocalBase(p, cfg).synced, 1)
+  assert.equal(localMain(root), originHead())
+  assert.equal(git(root, 'rev-parse', 'HEAD').stdout.trim(), mine)
+  assert.equal(git(root, 'symbolic-ref', '--short', 'HEAD').stdout.trim(), 'mine')
+})
+
+test('a sync that would touch a locally modified file is refused: one event, a hint, nothing reset', () => {
+  const { p, root } = repos({ mergedFile: 'a.txt' })
+  const cfg = withSync(p)
+  const before = localMain(root)
+  writeFileSync(join(root, 'a.txt'), 'operator is editing\n')
+  const r = syncLocalBase(p, cfg)
+  syncLocalBase(p, cfg)
+  assert.equal(r.behind, 1)
+  assert.ok(r.error)
+  assert.equal(localMain(root), before)
+  assert.equal(readFileSync(join(root, 'a.txt'), 'utf8'), 'operator is editing\n')
+  assert.equal(readEvents(p).filter(e => e.type === 'base.sync-failed').length, 1)
+  assert.equal(status(p, cfg).base.hint, 'local main is 1 commit(s) behind origin — run git pull')
+})
+
+test('autoSyncBase false leaves the local base alone', () => {
+  const { p, root } = repos()
+  const cfg = withSync(p, { autoSyncBase: false })
+  const before = localMain(root)
+  assert.equal(syncLocalBase(p, cfg), null)
+  assert.equal(localMain(root), before)
 })

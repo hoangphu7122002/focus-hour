@@ -299,6 +299,7 @@ export const register: Register = on => {
             : <Button key="start" label={`Start ${s.config.mode === 'observe' ? 'observe' : 'hour'}`} onPress={() => bg(act($, ['start']))} />}
         </Box>
         {v.message ? <Text dimColor wrap="truncate">{v.message}</Text> : null}
+        {s.base?.hint ? <Text color="yellow" wrap="truncate">⚠ {s.base.hint}</Text> : null}
         {!s.workerAlive && s.tasks.some(t => t.status === 'queued') ? <Text color="yellow">No worker running: start `focus worker` in a terminal.</Text> : null}
       </Box>
     )

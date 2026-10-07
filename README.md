@@ -78,7 +78,7 @@ run `focus ui` in a terminal (dashboard at http://127.0.0.1:7777 + workers), the
 | side work | "give this to a worker" → `focus-task` skill → `focus task add …` |
 | a feature | `/focus-plan docs/roadmap.md#F2` → tasks with order (`--after`); the next feature is offered when it merges |
 | big PRs | opened as drafts; an opus reviewer clears them or sends blockers back; your GitHub comments become reworks |
-| after merges | `smokeCommand` runs on main; `focus compare --repo a --repo b` for numbers |
+| after merges | your local main is fast-forwarded to origin (`autoSyncBase`, safe only; else a "run git pull" hint); `smokeCommand` runs on main; `focus compare --repo a --repo b` for numbers |
 | checkpoints | the pane opens; confirm drafts, review decisions marked ⚠, predict → open the PR → approve / rework / drop |
 | end | `/focus stop` → `.focus/sessions/<date>-<n>.md` (digest + metrics); `focus report` compares focus vs observe |
 

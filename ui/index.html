@@ -192,6 +192,7 @@ function renderBar() {
     ${s.config.smokeCommand ? `<div class="meta">${!s.smoke ? `${esc(baseName())} not smoke-checked yet` : s.smoke.pass ? `<span class="good">● ${esc(baseName())} ok</span> @ ${esc(s.smoke.sha.slice(0, 7))} · <code>${esc(s.config.smokeCommand)}</code>` : `<span class="err">● ${esc(baseName())} BROKEN</span> @ ${esc(s.smoke.sha.slice(0, 7)) } · <code>${esc(s.config.smokeCommand)}</code> fails`}${s.lessons ? ` · ${s.lessons} review lesson(s)` : ''}</div>` : s.lessons ? `<div class="meta">${s.lessons} review lesson(s)</div>` : ''}
     ${lvl ? `<div class="reason" data-level="${lvl}">${esc(s.attention.reason)}</div>` : ''}
     ${hidden ? `<div class="meta">${hidden} task(s) hidden until checkpoint ${s.session.upcoming} in ${fmt(s.session.inMs)} · <button class="link" data-act="reveal">show anyway (counts as a pull)</button></div>` : ''}
+    ${s.base?.hint ? `<div class="note">⚠ ${esc(s.base.hint)}${s.base.error ? ` <span class="meta">(${esc(s.base.error)})</span>` : ''}</div>` : ''}
     ${!s.workerAlive && liveTasks(s).some(t => t.status === 'queued') ? '<div class="note">No worker running — start <code>focus ui</code> or <code>focus worker</code>.</div>' : ''}`
 }
 

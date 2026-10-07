@@ -31,6 +31,7 @@ export type FocusTask = {
   costUsd: number
   escalations: number
   andon: { trigger: string; reason: string; class: string } | null
+  workerMessage: string | null
   checks: {
     files: string[]
     outOfScope: string[]
@@ -81,6 +82,7 @@ export type FocusStatus = {
   smoke: { sha: string; pass: boolean; at: number; seconds: number; tail: string } | null
   lessons: number
   workerAlive: boolean
+  base: { branch: string; behind: number; error: string | null; hint: string | null } | null
 }
 
 export type FocusView = {
