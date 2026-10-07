@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import { loadConfig } from '../lib/config.mjs'
 import { getTask, saveTask } from '../lib/tasks.mjs'
@@ -55,4 +57,35 @@ test('the same blockers after a real change also go to the human; new blockers g
   const t = await reviewTask(s.p, s.cfg, 'T1')
   assert.equal(t.status, 'queued')
   assert.equal(t.fixRounds, 2)
+})
+
+test('a commit pushed to the task branch by someone else is pulled in before the review round', async () => {
+  const { p, cfg, wt, head } = setup({ verdict: 'ok', blockers: [] })
+  const origin = join(p.root, 'origin.git')
+  git(p.root, 'init', '-q', '--bare', origin)
+  git(wt, 'remote', 'add', 'origin', origin)
+  git(wt, 'push', '-q', 'origin', 'HEAD:refs/heads/focus/T1')
+  const other = join(p.root, 'other')
+  git(p.root, 'clone', '-q', '-b', 'focus/T1', origin, other)
+  git(other, 'config', 'user.email', 't@t')
+  git(other, 'config', 'user.name', 't')
+  writeFileSync(join(other, 'a.txt'), 'fixed by the operator\n')
+  git(other, 'commit', '-qam', 'operator fix')
+  git(other, 'push', '-q', 'origin', 'focus/T1')
+  const theirs = git(other, 'rev-parse', 'HEAD').stdout.trim()
+  saveTask(p, task(wt, { review: { status: 'pending', reasons: ['x'] } }))
+  const t = await reviewTask(p, cfg, 'T1')
+  assert.equal(head(), theirs)
+  assert.equal(t.review.sha, theirs)
+})
+
+test('focus resume starts the fix-round budget over', () => {
+  const { p, wt } = setup({ verdict: 'ok' })
+  saveTask(p, task(wt, { status: 'stopped', fixRounds: 3, andon: { trigger: 'fix-rounds', reason: 'still blocked after 3 fix rounds' } }))
+  const bin = join(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'focus.mjs')
+  const r = spawnSync(process.execPath, [bin, 'resume', 'T1', 'operator fixed it'], { env: { ...process.env, FOCUS_ROOT: p.root }, encoding: 'utf8' })
+  assert.equal(r.status, 0, r.stderr)
+  const t = getTask(p, 'T1')
+  assert.equal(t.status, 'queued')
+  assert.equal(t.fixRounds, 0)
 })

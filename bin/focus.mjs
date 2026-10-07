@@ -344,7 +344,8 @@ try {
     case 'resume': {
       const t = updateTask(p, sub, x => {
         const note = cmd === 'rework' ? `The human reviewed your work and asks for changes: ${text || '(see PR comments)'}` : `The human resumed your stopped task (${x.andon?.reason ?? ''}). ${text || 'Undo the part that was stopped and stay inside your scope.'}`
-        Object.assign(x, { status: 'queued', note, andon: null, prediction: undefined, predictionMatch: undefined, predictionSkipped: undefined, reviewStartedAt: undefined })
+        // The human decided: the fix-round budget starts over (else a resumed task stops again at once).
+        Object.assign(x, { status: 'queued', note, andon: null, fixRounds: 0, prediction: undefined, predictionMatch: undefined, predictionSkipped: undefined, reviewStartedAt: undefined })
       })
       logEvent(p, `task.${cmd}`, { id: sub })
       out(`${t.id} queued again (${cmd}).`)
