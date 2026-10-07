@@ -23,7 +23,7 @@ import * as D from '../lib/decisions.mjs'
 import { hook } from '../lib/detectors.mjs'
 import * as S from '../lib/session.mjs'
 import { ICON, addTask, blockedReason, getTask, listTasks, sendInbox, updateTask } from '../lib/tasks.mjs'
-import { dirtyFiles, loop, prBody, removeWorktree } from '../lib/worker.mjs'
+import { baseRef, dirtyFiles, loop, prBody, removeWorktree } from '../lib/worker.mjs'
 import * as F from '../lib/features.mjs'
 import * as G from '../lib/guard.mjs'
 import { status, workerAlive } from '../lib/status.mjs'
@@ -82,7 +82,7 @@ function showTask(id, full) {
     const gate = c.predict === 'required' && !t.prediction
     lines.push('', t.prUrl ? `PR: ${t.prUrl}` : `Local branch ${t.branch}`)
     if (!t.prediction && !t.predictionSkipped && c.predict !== 'off') lines.push(`✎ Predict first: focus predict ${id} "the diff will …"${c.predict === 'optional' ? `  (or focus skip ${id})` : ''}`)
-    if (full && !gate) lines.push('', git(t.worktree ?? p.root, 'diff', `${c.baseBranch}...${t.branch}`).stdout || '(no diff)')
+    if (full && !gate) lines.push('', git(t.worktree ?? p.root, 'diff', `${baseRef(p, c)}...${t.branch}`).stdout || '(no diff)')
     lines.push(`Decide: focus approve ${id} · focus rework ${id} "…" · focus drop ${id}`)
   }
   return lines.join('\n')

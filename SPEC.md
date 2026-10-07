@@ -199,7 +199,10 @@ checkpoint early.
 
 ### 6.3 Run
 
-- `git worktree add .focus/state/worktrees/T5 -b focus/T5 <baseBranch>`.
+- `git fetch origin <baseBranch>`, then `git worktree add … -b focus/T5 origin/<baseBranch>` (the local base branch
+  when there is no remote or the fetch fails): PRs are merged on GitHub, so the local base is often behind. A reused
+  worktree whose branch has no commits of its own is fast-forwarded to the fresh base. Diffs are measured against
+  `origin/<baseBranch>` too.
 - `claude -p` in the worktree, model/effort/maxTurns from the level, `--permission-mode dontAsk` with an allowlist
   (read/edit tools, the test command, `git diff/status`, plus `worker.allowedTools`), `--max-budget-usd`,
   the worker rules appended to the system prompt, detector hooks passed via `--settings`.
