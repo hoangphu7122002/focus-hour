@@ -143,8 +143,8 @@ async function tick() {
   const a = s.attention
   if (!c.active) statusItem.text = '$(target) Focus: not started'
   else if (c.overtime) statusItem.text = "$(target) Focus: time's up"
-  else if (c.current || c.pulledEarly) statusItem.text = `$(eye) Focus: ${c.pulledEarly ? 'early checkpoint' : `checkpoint #${c.current}`}`
-  else statusItem.text = `${ICON[a.level]} Focus ${fmt(c.left)} · #${c.upcoming} in ${fmt(c.inMs)}`
+  else if (c.current || c.pulledEarly) statusItem.text = `$(eye) Focus: ${c.pulledEarly ? 'early checkpoint' : `checkpoint ${c.current}`}`
+  else statusItem.text = `${ICON[a.level]} Focus ${fmt(c.left)} · checkpoint ${c.upcoming} in ${fmt(c.inMs)}`
   statusItem.tooltip = a.reason || 'Focus Hour'
   statusItem.backgroundColor = a.level === 3 ? new vscode.ThemeColor('statusBarItem.errorBackground') : a.level === 2 ? new vscode.ThemeColor('statusBarItem.warningBackground') : undefined
   statusItem.show()
@@ -153,7 +153,7 @@ async function tick() {
   const early = Boolean(c.pulledEarly)
   if (cfg().get('revealOnCheckpoint') && ((cp && cp !== last.checkpoint) || (early && !last.early))) {
     vscode.commands.executeCommand('focusHour.map.focus')
-    vscode.window.showInformationMessage(early ? `Focus Hour · early checkpoint: ${a.reason}` : `Focus Hour · checkpoint #${cp}: time to review`)
+    vscode.window.showInformationMessage(early ? `Focus Hour · early checkpoint: ${a.reason}` : `Focus Hour · checkpoint ${cp}: time to review`)
   } else if (c.active && a.level === 2 && last.level < 2) {
     vscode.window.showWarningMessage(`Focus Hour: ${a.reason}`)
   }

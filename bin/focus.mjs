@@ -61,7 +61,7 @@ function headline(c) {
   const counts = `🔵${n('review')} 🔥${n('stopped')} 🟢${n('running')} ⚪${n('queued')} · ✎${ds.filter(d => d.status === 'draft').length} ⚠${ds.filter(d => d.status === 'dead').length}`
   if (!cp.active) return `Focus Hour (not started) · ${counts}`
   if (cp.overtime) return `⏹ time's up · ${counts} · focus stop`
-  const head = cp.current ? `👀 CHECKPOINT #${cp.current}` : `⏱ ${fmtDuration(cp.left)} left · 👀 #${cp.upcoming} in ${fmtDuration(cp.inMs)}`
+  const head = cp.current ? `👀 CHECKPOINT ${cp.current}` : `⏱ ${fmtDuration(cp.left)} left · 👀 checkpoint ${cp.upcoming} in ${fmtDuration(cp.inMs)}`
   return `${head}${cp.mode === 'observe' ? ' · observe' : ''} · ${counts}`
 }
 

@@ -169,7 +169,7 @@ function headline(s) {
   if (c.overtime) return "Time's up"
   if (c.pulledEarly) return 'Early checkpoint'
   if (c.current) return `Checkpoint #${c.current}`
-  return `${fmt(c.left)} left · checkpoint #${c.upcoming} in ${fmt(c.inMs)}`
+  return `${fmt(c.left)} left · checkpoint ${c.upcoming} in ${fmt(c.inMs)}`
 }
 
 const baseName = () => 'main'
@@ -191,7 +191,7 @@ function renderBar() {
     ${s.features?.list?.length ? `<div class="feats">${s.features.list.map(f => `<span class="feat ${f.status}" title="${esc(`${f.id} · ${f.name}${f.goal ? `\nGoal: ${f.goal}` : ''}${f.ac?.length ? `\nAC: ${f.ac.join(', ')}` : ''}`)}">${{ done: '✅', building: '▶', todo: '⬜' }[f.status] ?? ''} ${esc(f.id)} ${esc(fit(f.name, 150))}${f.tasks ? ` · ${f.merged}/${f.tasks}` : ''}</span>`).join('')}</div>` : ''}
     ${s.config.smokeCommand ? `<div class="meta">${!s.smoke ? `${esc(baseName())} not smoke-checked yet` : s.smoke.pass ? `<span class="good">● ${esc(baseName())} ok</span> @ ${esc(s.smoke.sha.slice(0, 7))} · <code>${esc(s.config.smokeCommand)}</code>` : `<span class="err">● ${esc(baseName())} BROKEN</span> @ ${esc(s.smoke.sha.slice(0, 7)) } · <code>${esc(s.config.smokeCommand)}</code> fails`}${s.lessons ? ` · ${s.lessons} review lesson(s)` : ''}</div>` : s.lessons ? `<div class="meta">${s.lessons} review lesson(s)</div>` : ''}
     ${lvl ? `<div class="reason" data-level="${lvl}">${esc(s.attention.reason)}</div>` : ''}
-    ${hidden ? `<div class="meta">${hidden} task(s) hidden until checkpoint #${s.session.upcoming} in ${fmt(s.session.inMs)} · <button class="link" data-act="reveal">show anyway (counts as a pull)</button></div>` : ''}
+    ${hidden ? `<div class="meta">${hidden} task(s) hidden until checkpoint ${s.session.upcoming} in ${fmt(s.session.inMs)} · <button class="link" data-act="reveal">show anyway (counts as a pull)</button></div>` : ''}
     ${!s.workerAlive && liveTasks(s).some(t => t.status === 'queued') ? '<div class="note">No worker running — start <code>focus ui</code> or <code>focus worker</code>.</div>' : ''}`
 }
 

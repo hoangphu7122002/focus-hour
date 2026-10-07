@@ -41,7 +41,7 @@ async function refresh($: EngineInterface) {
   if (cp > 0 && cp !== m.lastCheckpoint) {
     const waiting = s.tasks.filter(t => t.status === 'review' || t.status === 'stopped').length
     const drafts = s.decisions.filter(d => d.status === 'draft' || d.status === 'dead').length
-    $.ui.toast(`👀 Checkpoint #${cp}: ${waiting} task(s) and ${drafts} decision(s) need you`, { timeoutMs: 8000 })
+    $.ui.toast(`👀 Checkpoint ${cp}: ${waiting} task(s) and ${drafts} decision(s) need you`, { timeoutMs: 8000 })
     const tab: FocusView['tab'] = waiting ? 'queue' : 'decisions'
     await update($, view, v => ({ ...v, tab, selected: null }))
     $.ui.open({ id: PANE, title: 'Focus' }).catch(() => undefined)
@@ -277,7 +277,7 @@ export const register: Register = on => {
       const t = s.tasks.find(x => x.id === v.selected)
       body = gated ? (
         <Box flexDirection="column">
-          <Text dimColor>Queue is quiet until checkpoint #{s.session.upcoming} in {fmt(s.session.inMs)}. Keep building the core.</Text>
+          <Text dimColor>Queue is quiet until checkpoint {s.session.upcoming} in {fmt(s.session.inMs)}. Keep building the core.</Text>
           <Button key="reveal" label="Show anyway (counts as a pull)" onPress={() => bg(revealQueue($))} />
         </Box>
       ) : t ? taskDetail(t) : taskList(s.tasks)
@@ -418,6 +418,6 @@ function headline(s: FocusStatus) {
   const c = s.session
   if (!c.active) return `Focus · not started · ${counts}`
   if (c.overtime) return `Focus · ⏹ time's up · ${counts}`
-  const head = c.pulledEarly ? '👀 EARLY CHECKPOINT' : c.current ? `👀 CHECKPOINT #${c.current}` : `⏱ ${fmt(c.left)} · 👀 #${c.upcoming} in ${fmt(c.inMs)}`
+  const head = c.pulledEarly ? '👀 EARLY CHECKPOINT' : c.current ? `👀 CHECKPOINT ${c.current}` : `⏱ ${fmt(c.left)} · 👀 checkpoint ${c.upcoming} in ${fmt(c.inMs)}`
   return `Focus · ${head}${c.mode === 'observe' ? ' · observe' : ''} · ${counts}`
 }

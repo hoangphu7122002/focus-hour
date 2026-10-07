@@ -291,7 +291,7 @@ cwd, Focus Hour starts no new task (both would open PRs and answer the same comm
 ## 8. The hour and the pane
 
 ```text
-┌ Focus ─ ⏱ 32:10 · 👀 #2 in 7:50 · 🔵2 ⚠1 🟢1 ⚪1 ─────────────────────────────┐
+┌ Focus ─ ⏱ 32:10 · 👀 checkpoint 2 in 7:50 · 🔵2 ⚠1 🟢1 ⚪1 ─────────────────────────────┐
 │ [Session] [Decisions 2 drafts] [Queue]                                         │
 │ Flow: baseline ✓ → sweep seqs ▶ → decide config                               │
 │ D012 ● max-num-seqs=64 · D009 ⚠ 1×L4 (D005 changed) · D013 ✎ draft            │

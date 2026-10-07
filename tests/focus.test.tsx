@@ -29,7 +29,7 @@ const STATUS: FocusStatus = {
 }
 
 // A fake repo: the CLI answers from memory and every call is recorded.
-function fakeRepo(on: any) {
+function fakeRepo(on: any, status: FocusStatus = STATUS) {
   const calls: { args: string[]; stdin?: string }[] = []
   on('session.start', ($: unknown, e: unknown) => e)
   on('command.register', () => ({ value: undefined }))
@@ -42,7 +42,7 @@ function fakeRepo(on: any) {
   on('process.run', ($: unknown, e: { argv: string[]; init?: { stdin?: string } }) => {
     const args = e.argv.slice(2)
     calls.push({ args, stdin: e.init?.stdin })
-    const out = args[0] === 'status' ? JSON.stringify(STATUS) : args[0] === 'decision' && args[1] === 'capture' ? '[{"id":"D003","action":"new"}]' : 'ok'
+    const out = args[0] === 'status' ? JSON.stringify(status) : args[0] === 'decision' && args[1] === 'capture' ? '[{"id":"D003","action":"new"}]' : 'ok'
     return { value: { exitCode: 0, stdout: out, stderr: '' } }
   })
   return calls
@@ -114,4 +114,12 @@ test('main session effort: a turn asks at low, moves to medium once it edits, an
   await $.prompt.submit({ text: '/effort high' } as never)
   await step(2)
   expect(seen).toEqual(['low', 'medium', 'high'])
+})
+
+test('between checkpoints the header names the next checkpoint, not a "#n" that reads like a PR number', async ($, on) => {
+  fakeRepo(on, { ...STATUS, session: { ...STATUS.session, current: 0, inWindow: false } })
+  await $.session.start({ cwd: '/repo', surface: null, isInteractive: true } as never)
+  const pane = await $.ui.mount({ plugin: 'focus-hour', surface: 'terminal', component: 'Pane', requestId: 'focus-hour', props: { bodyColumns: 100 } as never })
+  expect(await pane.find({ text: /👀 checkpoint 3 in 1:00/ })).toBeDefined()
+  expect(await pane.find({ text: /👀 #3/ })).toBeUndefined()
 })
