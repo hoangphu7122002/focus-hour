@@ -23,11 +23,43 @@ const fmt = (ms = 0) => {
 const bg = (p: Promise<unknown>) => void p.catch(() => undefined)
 
 // Module state: reset on reload, rebuilt by session.start.
-const m = { root: '', cliPath: '', enabled: false, isWorker: false, lastJson: '', lastCheckpoint: 0, lastLevel: 0, turnStartedAt: 0, codingTurn: '', manualEffort: false, effortNow: '' }
+const m = { root: '', cliPath: '', enabled: false, isWorker: false, lastJson: '', lastCheckpoint: 0, lastLevel: 0, turnStartedAt: 0, codingTurn: '', manualEffort: false, effortNow: '', timer: null as null | { cancel: () => void }, lastTick: 0, refreshingSince: 0 }
+
+const TICK_MS = 3000
 
 async function cli($: EngineInterface, args: string[], stdin?: string) {
   const r = await $.process.run(['node', m.cliPath, ...args], { cwd: m.root, stdin, timeoutMs: 60_000 })
   return { ok: r.exitCode === 0, text: (r.stdout || r.stderr).trim() }
+}
+
+// The pane's heartbeat. Armed at session start whether or not the repo is set up yet (`focus init` may run later from
+// a shell, which no hook sees), and re-armed by keepAlive when it went quiet (a refused period ends an interval).
+function arm($: EngineInterface) {
+  m.timer?.cancel()
+  m.timer = $.clock.every(TICK_MS, () => bg(tick($)))
+}
+
+async function tick($: EngineInterface) {
+  const t = (m.lastTick = await $.clock.now())
+  if (!m.enabled && m.root) m.enabled = await $.fs.exists(`${m.root}/.focus/config.json`)
+  // Ticks never pile up behind a slow CLI; one that hangs is not waited on forever.
+  if (m.refreshingSince && t - m.refreshingSince < 30_000) return
+  m.refreshingSince = t
+  try {
+    await refresh($)
+  } finally {
+    m.refreshingSince = 0
+  }
+}
+
+// Called from frequent events (turns, tool calls, prompts): restarts a heartbeat that stopped.
+async function keepAlive($: EngineInterface) {
+  if (m.isWorker || !m.root) return
+  const t = await $.clock.now()
+  if (t - m.lastTick > 3 * TICK_MS) {
+    arm($)
+    await tick($)
+  }
 }
 
 async function refresh($: EngineInterface) {
@@ -101,9 +133,10 @@ export const register: Register = on => {
     m.cliPath = `${$.plugin.root}/bin/focus.mjs`
     m.enabled = await $.fs.exists(`${m.root}/.focus/config.json`)
     await $.command.register({ name: 'focus', description: 'Focus Hour: open the dashboard, or run a focus command (/focus start 60, /focus stop, /focus init)', argumentHint: '[init|start N|stop|report|…]' })
+    m.lastTick = await $.clock.now()
+    arm($)
     if (m.enabled) {
       await refresh($)
-      $.clock.every(3000, () => bg(refresh($)))
       const s = await read($, status)
       const hasNews = s && (s.resume.needsReview.length || s.resume.drafts.length || s.resume.waiting.length || s.resume.stopped.length || s.resume.last)
       if (hasNews) $.ui.open({ id: PANE, title: 'Focus' }).catch(() => undefined)
@@ -113,6 +146,8 @@ export const register: Register = on => {
 
   on('command.run', { command: 'focus' }, async ($, e) => {
     const args = e.args.trim()
+    if (!m.enabled) m.enabled = await $.fs.exists(`${m.root}/.focus/config.json`)
+    bg(keepAlive($))
     if (!args) {
       if (!m.enabled) return { text: 'Focus Hour is not set up in this repo. Run: /focus init' }
       await refresh($)
@@ -122,7 +157,6 @@ export const register: Register = on => {
     const r = await cli($, args.match(/"[^"]*"|\S+/g)!.map(a => a.replace(/^"|"$/g, '')))
     if (args.startsWith('init')) {
       m.enabled = await $.fs.exists(`${m.root}/.focus/config.json`)
-      if (m.enabled) $.clock.every(3000, () => bg(refresh($)))
     }
     m.lastJson = ''
     await refresh($)
@@ -189,9 +223,11 @@ export const register: Register = on => {
   // edits files. Only during an active focus hour in focus mode; a /effort typed by you turns this off.
   on('turn.start', async ($, e, next) => {
     m.codingTurn = ''
+    bg(keepAlive($))
     return next(e)
   })
   on('tool.call', async ($, e, next) => {
+    bg(keepAlive($))
     if (['Edit', 'Write', 'MultiEdit', 'NotebookEdit'].includes(String(e.tool))) {
       const s = await read($, status)
       if (s?.session.active) m.codingTurn = 'current'

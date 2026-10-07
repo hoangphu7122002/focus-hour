@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 import type { FocusStatus } from '../types'
 
@@ -31,6 +31,7 @@ const STATUS: FocusStatus = {
 // A fake repo: the CLI answers from memory and every call is recorded.
 function fakeRepo(on: any, status: FocusStatus = STATUS) {
   const calls: { args: string[]; stdin?: string }[] = []
+  mock.clock(on)
   on('session.start', ($: unknown, e: unknown) => e)
   on('command.register', () => ({ value: undefined }))
   
