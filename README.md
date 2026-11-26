@@ -2,8 +2,6 @@
 
 **Build the core of your work with Claude Code for one hour while background workers do the side tasks and open PRs at your review pace, and every decision you make is logged with a plain-language why.**
 
-[![Last commit](https://img.shields.io/github/last-commit/hoangphu7122002/focus-hour)](https://github.com/hoangphu7122002/focus-hour/commits/main)
-
 ![The Focus map: decisions and tasks as a flow, one lane per feature area](docs/images/01-overview.png)
 
 ## What and why
@@ -59,20 +57,9 @@ cd <repo> && focus init     # writes .focus/config.json (test command, base bran
 
 ## How it works
 
-```mermaid
-flowchart TD
-    A["/focus start"] --> B["You and Claude build the core<br/>AskUserQuestion batches"]
-    B --> C["Answers become draft decisions<br/>D012 with a why"]
-    B -->|"'give this to a worker'"| D["focus task add<br/>--scope tests/"]
-    D --> E["Worker: claude -p in its own<br/>worktree and branch"]
-    E -->|"detector fires"| F["Worker stops<br/>you resume, label or drop"]
-    E --> G["PR opened (draft if big)<br/>opus reviewer checks it"]
-    G --> H["Checkpoint: the panel opens<br/>confirm drafts, predict, open PR"]
-    H --> I["approve / rework / drop"]
-    I -->|"merged"| J["Local base fast-forwarded,<br/>smokeCommand runs on main"]
-    H --> K["/focus stop"]
-    K --> L[".focus/sessions/date-n.md<br/>digest and metrics"]
-```
+<p align="center"><img src="docs/assets/how-it-works.png" alt="Focus Hour flow: you build the core, workers take side tasks as PRs, checkpoints and a session digest close the hour." width="100%"></p>
+
+<sub>drawn by docs/assets/make_figures.py (needs Google Chrome)</sub>
 
 <details><summary><b>Each hour: commands</b></summary>
 
@@ -122,36 +109,9 @@ Sidebar and light theme: [06-sidebar.png](docs/images/06-sidebar.png), [07-light
 
 Three thin front ends over one CLI. The CLI keeps everything as files in your repo, and the chat, the panel and the workers never write those files themselves. Diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-```mermaid
-flowchart LR
-    you([You])
-    subgraph editor["VS Code / Cursor"]
-        chat["Claude chat<br/>(main session)"]
-        panel["Focus map panel"]
-    end
-    subgraph plugin["focus-hour plugin"]
-        mod["Mod<br/>captures decisions"]
-        skills["Skills<br/>focus-grill · focus-plan · focus-task"]
-        cli[["focus CLI"]]
-        ui["focus ui<br/>dashboard + workers"]
-    end
-    subgraph repo["Your repo (files)"]
-        dec[("docs/decisions/")]
-        state[(".focus/state/")]
-        digest[(".focus/sessions/")]
-    end
-    workers["Workers<br/>claude -p in a worktree"]
-    gh["GitHub PRs"]
-    you <--> chat
-    you <--> panel
-    chat --> mod --> cli
-    chat --> skills --> cli
-    panel --> ui --> cli
-    cli <--> dec
-    cli <--> state
-    cli --> digest
-    ui --> workers --> gh
-```
+<p align="center"><img src="docs/assets/architecture.png" alt="Focus Hour architecture: chat, panel and workers over one focus CLI that keeps files in your repo." width="100%"></p>
+
+<sub>drawn by docs/assets/make_figures.py (needs Google Chrome)</sub>
 
 | Layer | Stack |
 |---|---|
